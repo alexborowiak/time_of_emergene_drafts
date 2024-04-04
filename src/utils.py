@@ -4,6 +4,24 @@ import numpy as np
 import xarray as xr
 
 
+# import logging
+# logging.basicConfig(format="- %(message)s", filemode='w', stream=sys.stdout)
+# logger = logging.getLogger()
+
+def get_notebook_logger():
+    import logging, sys
+    logging.basicConfig(format=" - %(message)s", filemode='w', stream=sys.stdout)
+    logger = logging.getLogger()
+    return logger
+
+    
+
+def change_logging_level(logginglevel: str):
+    eval(f'logging.getLogger().setLevel(logging.{logginglevel})')
+    
+def change_logginglevel(logginglevel: str):
+    change_logging_level(logginglevel)
+
 def find_nth_extreme_location(ds:xr.Dataset, method=Literal['max', 'min'], nth=1, 
                              output_dtype=Literal['tuple', 'dict']):
     """

@@ -11,7 +11,7 @@ from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind
 from numpy.typing import ArrayLike
 
 sys.path.append('../')
-import signal_to_noise as sn
+# import signal_to_noise as sn
 
 
 
