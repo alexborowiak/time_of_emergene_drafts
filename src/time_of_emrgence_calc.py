@@ -2,12 +2,13 @@ import os, sys
 from functools import partial
 from itertools import groupby
 from typing import Optional, Callable, Union, Tuple
+from itertools import combinations
 
-import xarray as xr
 import numpy as np
+import pandas as pd
+import xarray as xr
 import dask.array as daskarray
-from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind
-# from dask.array.stats import ttest_ind
+from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr
 from numpy.typing import ArrayLike
 
 sys.path.append('../')
@@ -249,7 +250,8 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
         output_core_dims=[[]],
         vectorize=True, 
         dask='parallelized',
-        output_dtypes=[float]
+        output_dtypes=[float],
+        keep_attrs='identical'
     )
 
     # Apply the partial function to compute the permanent exceedance
@@ -293,6 +295,68 @@ def create_exceedance_single_point_dict(toe_ds, timeseries_ds):
         'val': val
     }
 
+
+
+
+
+def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
+    """
+    Calculate Spearman correlation between variables in a dataset for all combinations.
+
+    Parameters:
+        ds (xr.Dataset): An xarray Dataset containing variables for correlation.
+
+    Returns:
+        pd.DataFrame: A DataFrame showing the Spearman correlation between all variables.
+                      Rows and columns represent variables, values are correlation coefficients.
+                      NaN is placed where the variables are the same or have already been correlated.
+    """
+    data_vars = ds.data_vars
+    tests_used: List[str] = list(data_vars)
+    test_combinations = list(combinations(tests_used, 2))  # Generate unique combinations
+
+    # Dictionary to store correlations
+    correlations: Dict[str, Dict[str, float]] = {}
+    for test_left, test_right in test_combinations:
+    
+        # Calculate Spearman correlation
+        corr_values = spearmanr(
+            ds[test_left].values.flatten(),
+            ds[test_right].values.flatten(),
+            nan_policy='omit'
+        ).correlation
+        
+        correlations.setdefault(test_left, {})[test_right] = corr_values
+        # Both combs need to be in there to read into pandas, but the value doesn't need to 
+        # be repeated twice - hence nan
+        correlations.setdefault(test_right, {})[test_left] = np.nan
+
+
+    # Convert dictionary to DataFrame
+    correlation_df = pd.DataFrame(correlations).round(2)
+
+    # Convert dictionary to DataFrame and reverse column order
+    correlation_df = pd.DataFrame(correlations).round(2)
+    # Ensuring the row and column order is correct
+    correlation_df = correlation_df.loc[data_vars, :][data_vars]
+    return correlation_df
+    
+    
+# def data_var_pattern_correlation_all_combs(ds:xr.Dataset):
+#     outer_dict = {}
+#     for test_left in tests_used:
+#         inner_dict = {}
+#         for test_right in tests_used:
+#             # If the tests are the same this will always be the same so np.nan
+#             # Also, if this combo has already been done (e.g x-y is the same as y-x)
+#             if test_left == test_right or test_right in outer_dict:
+#                 corr_val = np.nan
+#             else: 
+#                 corr_val = spearmanr(toe_ds[test_left].values.flatten(), toe_ds[test_right].values.flatten(), nan_policy='omit').statistic
+#             inner_dict[test_right] = corr_val
+#         outer_dict[test_left] = inner_dict
+    
+#     test_pattern_correlation_df = pd.DataFrame(outer_dict).round(2)
 
 # TEST_NAME_MAPPING = {
 #     return_ttest_pvalue:'ttest',

@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 
 
-# import logging
+import logging
 # logging.basicConfig(format="- %(message)s", filemode='w', stream=sys.stdout)
 # logger = logging.getLogger()
 
@@ -14,7 +14,7 @@ def get_notebook_logger():
     logger = logging.getLogger()
     return logger
 
-    
+logger = get_notebook_logger()
 
 def change_logging_level(logginglevel: str):
     eval(f'logging.getLogger().setLevel(logging.{logginglevel})')
