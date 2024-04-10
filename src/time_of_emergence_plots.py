@@ -31,7 +31,7 @@ def plot_multiseries_with_pvalues(
     series_ds: xr.Dataset,
     exceedance_year_ds: xr.Dataset,
     best_ds_smean: xr.Dataset,
-    labels:Dict[str, str] = None,
+    labels:Dict[str, str] = {},
     fig=None,
     axes=None,
     gs=None
@@ -104,7 +104,7 @@ def plot_multiseries_with_pvalues(
     ax1.set_ylabel('Surface Temperature\nAnomaly (K)' if 'ylabel_bottom' not in labels else labels['ylabel_bottom'])
     ax1.set_xlabel('Year')
 
-    ax3.set_yticklabels([label.get_text() for label in ax1.get_yticklabels()][::-1])
+    ax3.set_yticklabels([label.get_text() for label in ax3.get_yticklabels()][::-1])
 
 
     ax1.grid(True)
