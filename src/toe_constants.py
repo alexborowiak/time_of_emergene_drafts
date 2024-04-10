@@ -1,6 +1,6 @@
 from enum import Enum
 
-VALUE_TESTS = ['ks', 'ttest', 'anderson']
+PVALUE_TESTS = ['ks', 'ttest', 'anderson']
 
 
 NAME_CONVERSION_DICT = {'signal_to_noise': 'Signal to Noise Ratio',

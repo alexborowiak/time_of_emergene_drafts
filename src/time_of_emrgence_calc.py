@@ -89,6 +89,36 @@ def stats_test_1d_array(arr, stats_func:Callable, window: int=20, base_period_le
     return pval_array 
 
 
+def stats_test_1d_xr(ds: xr.Dataset, stats_func: Callable, window: int = 20, base_period_length: int = 50) -> ArrayLike:
+    """
+    Calculate statistical test for 1D data along the specified dimension using a custom function.
+
+    Parameters:
+    - ds (xr.Dataset): The xarray Dataset containing the data.
+    - stats_func (Callable): The statistical function to apply to the data.
+    - window (int): Size of the rolling window for calculations. Default is 20.
+    - base_period_length (int): Length of the base period for the statistical test. Default is 50.
+
+    Returns:
+    - ArrayLike: An xarray DataArray containing the statistical test results.
+
+    This function calculates a statistical test for 1D data along the specified dimension of an xarray Dataset.
+    It applies a custom statistical function (stats_func) to the data using a rolling window of size 'window'.
+    The base period length for the statistical test is 'base_period_length'.
+    The result is returned as an xarray DataArray with the same dimensions as the input Dataset.
+    """
+    # Call the underlying function that operates on NumPy arrays
+    arr = stats_test_1d_array(ds, stats_func=stats_func, window=window, base_period_length=base_period_length)
+
+    # Remove the nan-values
+    arr = arr[np.isfinite(arr)]
+
+    # We want to use the mid point. However, this calculation uses the start point
+    half_window = int(window/2)
+    # Create a new xarray DataArray filled with the calculated values
+    result = xr.zeros_like(ds.isel(time=slice(half_window, half_window+len(arr)))) + arr
+    
+    return result
 
 def return_hawkins_signal_and_noise(lt: ArrayLike, gt: ArrayLike, return_reconstruction:bool=False) -> Tuple[ArrayLike, ArrayLike]:
     """
