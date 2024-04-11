@@ -1,8 +1,9 @@
 import os, sys
 from functools import partial
 from itertools import groupby
-from typing import Optional, Callable, Union, Tuple
+from typing import Optional, Callable, Union, Tuple, NamedTuple
 from itertools import combinations
+from enum import Enum
 
 import numpy as np
 import pandas as pd
@@ -11,8 +12,11 @@ import dask.array as daskarray
 from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr
 from numpy.typing import ArrayLike
 
-sys.path.append('../')
-# import signal_to_noise as sn
+# My imports
+sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'))
+sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
+
+import toe_constants as toe_const
 
 
 
@@ -371,108 +375,136 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
     correlation_df = correlation_df.loc[data_vars, :][data_vars]
     return correlation_df
     
+
+
+def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> ArrayLike:
+    """
+    Calculates a binary array representing the emergence of an event.
+
+    Parameters:
+        arr (ArrayLike): Input array.
+        year_of_emergence (int): Year of the event's emergence.
+        time_years (ArrayLike): Array of years.
+
+    Returns:
+        ArrayLike: Binary array representing the event's emergence.
+                   0 before the year_of_emergence, 1 after.
+
+    If year_of_emergence is NaN or all values in arr are NaN, the function
+    returns arr unchanged.
+    """
+
+    # If the year_of_emergence is nan or all the values at the location are nan
+    # then return nan
+    if np.isnan(year_of_emergence) or np.all(np.isnan(arr)): return arr
+
+    # The integer arguement of where the time_years equals the emergence arg
+    emergence_arg = np.argwhere(time_years == np.round(year_of_emergence)).item()
+
+    to_return = np.zeros_like(arr)
+
+    # Set all values to 1 after emergence has occured
+    to_return[emergence_arg:] =  1
+
+    return to_return
+
+def percentage_lat_lons(ds_num, ds_denom, weights):
+    """
+    Calculate the percentage by comparing two datasets.
+
+    Parameters:
+        ds_num (xarray.Dataset): Numerator dataset.
+        ds_denom (xarray.Dataset): Denominator dataset.
+        weights (xarray.DataArray): Weights for the calculation.
+
+    Returns:
+        xarray.DataArray: Dataset containing the percentage.
+    """
+    # Calculate the sum of the numerator dataset weighted by weights
+    ds_num_sum = ds_num.weighted(weights).sum(dim=['lat', 'lon'])
+
+    # Calculate the sum of the denominator dataset weighted by weights
+    ds_denom_sum = ds_denom.weighted(weights).sum(dim=['lat', 'lon'])
+
+    # Calculate the percentage
+    percent_ds = ds_num_sum / ds_denom_sum * 100
+
+    return percent_ds
+
+
+
+def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_mask_ds:xr.Dataset, only_1s_ds:xr.Dataset
+                                        ) -> xr.Dataset:
+    """
+    Calculate the percentage of stability for regions based on binary emergence data.
+
+    Parameters:
+        binary_emergence_ds (xr.Dataset): Dataset containing binary emergence data.
+        land_mask_ds (xr.Dataset): Dataset containing land mask data.
+        only_1s_ds (xr.Dataset): Dataset with only values of 1. This is needed as it can differ
+                                due to data availability
+
+    Returns:
+        xr.Dataset: Dataset with percentage of stability for each region.
+
+    This function calculates the percentage of stability for regions based on binary
+    emergence data and land mask information. It assumes the existence of a variable
+    'only_1s_ds' that is the same shape as 'binary_emergence_ds' and contains only
+    values of 1 where the event has occurred.
+    """
+
+    # Calculating the weights
+    weights = np.cos(np.deg2rad(binary_emergence_ds.lat))
+    weights.name = 'weights'
+
+    # The two regions that need the land-sea make
+    NEEDS_MASKING = ['land', 'ocean']
     
-# def data_var_pattern_correlation_all_combs(ds:xr.Dataset):
-#     outer_dict = {}
-#     for test_left in tests_used:
-#         inner_dict = {}
-#         for test_right in tests_used:
-#             # If the tests are the same this will always be the same so np.nan
-#             # Also, if this combo has already been done (e.g x-y is the same as y-x)
-#             if test_left == test_right or test_right in outer_dict:
-#                 corr_val = np.nan
-#             else: 
-#                 corr_val = spearmanr(toe_ds[test_left].values.flatten(), toe_ds[test_right].values.flatten(), nan_policy='omit').statistic
-#             inner_dict[test_right] = corr_val
-#         outer_dict[test_left] = inner_dict
+    ds_collection = []
+
+    for region in toe_const.regionLatLonTuples:
+        region_name = region.value.name.lower()
+        lat_slice = region.value.slice
+        
+        # Select data for the current region
+        ds_region = binary_emergence_ds.sel(lat=lat_slice).expand_dims({'region':[region_name]})
+
+        only_1s_ds_region = only_1s_ds.sel(lat=lat_slice)
+        # Apply masking if needed
+        if region_name in NEEDS_MASKING:
+            mask_to_use_ds = xr.where(land_mask_ds, 0, 1) if region_name == 'land' else xr.where(land_mask_ds, 1, 0) 
+            ds_region = ds_region.where(mask_to_use_ds)
+            only_1s_ds_region = only_1s_ds_region.where(mask_to_use_ds)
+
+
+        # Compute the fraction stable
+        time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
+        
+        ds_collection.append(time_series_ds)
+    emergence_time_series_ds = xr.concat(ds_collection, dim='region')
+    return emergence_time_series_ds
+
+
+def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> float:
+    """
+    Finds the value in the `arr` array at the index corresponding to the `year_of_emergence` in `time_years`.
+
+    Parameters:
+        arr (ArrayLike): The array of values.
+        year_of_emergence (int): The year of emergence to find the value for.
+        time_years (ArrayLike): The array of years.
+
+    Returns:
+        float: The value in `arr` corresponding to the `year_of_emergence`, or NaN if `year_of_emergence` is NaN
+    """
+    # If year_of_emergence is NaN, return NaN
+    if np.isnan(year_of_emergence):
+        return np.nan
     
-#     test_pattern_correlation_df = pd.DataFrame(outer_dict).round(2)
-
-# TEST_NAME_MAPPING = {
-#     return_ttest_pvalue:'ttest',
-#     return_ks_pvalue: 'ks',
-#     return_anderson_pvalue: 'anderson_darling'
-# }
-
-
+    # Find the index of year_of_emergence in time_years
+    emergence_arg = np.argwhere(time_years == year_of_emergence).item()
     
-# def stats_test_with_ufunc(da: xr.DataArray, window: int, base_period_ds: xr.DataArray, statistic_func:Callable) -> xr.DataArray:
-#     """
-#     Apply statistical test using xarray's apply_ufunc.
-
-#     Parameters:
-#         da (xr.DataArray): Data to apply the test to.
-#         window (int): Size of the rolling window for the test.
-#         base_period_ds (xr.DataArray): Base period data for comparison.
-#         statistic_func (Callable): Statistical function to use.
-
-#     Returns:
-#         xr.DataArray: DataArray containing the p-values.
-#     """
-
-#     assert isinstance(da, xr.DataArray)
-#     output_da = xr.apply_ufunc(
-#         statistic_func,
-#         da.rolling(time=window).construct('window_dim')[(window-1):],
-#         base_period_ds.rename({'time':'window_dim'}),
-#         input_core_dims=[['window_dim'], ['window_dim']],
-#         exclude_dims={'window_dim'},
-#         vectorize=True,
-#         dask='parallelized'#''
-#     )
-#     output_da.attrs = {'longname': TEST_NAME_MAPPING.get(statistic_func, 'p-value')}
-#     return output_da
-
-# def return_statistic_func_pvalue(statistic_func, test_arr, base_arr):
-#     if statistic_func == anderson_ksamp: statistic_func = statistic_func([base_arr, test_arr])
-#     else:  statistic_func = statistic_func(base_arr, test_arr)
-#     return statistic_func.pvalue
-
-# ttest_ind_partial = partial(toe.return_statistic_func_pvalue, statistic_func=ttest_ind)
-# anderson_ksamp_partial = partial(toe.return_statistic_func_pvalue, statistic_func=anderson_ksamp)
-# ks_2samp_ind_partial = partial(toe.return_statistic_func_pvalue, statistic_func=ks_2samp)
-
-
-
-# from scipy.stats import ttest_ind
-
-# def return_ttest_pvalue(test_arr, base_arr):
-#     """
-#     Compute T-Test p-value between two arrays.
-
-#     Parameters:
-#         test_arr (ArrayLike): Array to test against base_arr.
-#         base_arr (ArrayLike): Base array to compare against.
-
-#     Returns:
-#         float: T-Test p-value.
-#     """
-#     return ttest_ind(test_arr, base_arr, nan_policy='omit').pvalue
-
-# def stats_test_1d_array(arr, window: int=20, base_period_length:int = 50):
-#     """
-#     Apply Kolmogorov-Smirnov test along a 1D array.
-
-#     Parameters:
-#         arr (ArrayLike): 1D array to apply the test to.
-#         window (int): Size of the rolling window for the test.
-#         base_period_length (int, optional): Length of the base period. Defaults to 50.
-
-#     Returns:
-#         ArrayLike: Array of p-values.
-#     """
-#     # The data to use for the base period
-#     base_list = arr[:base_period_length]
-#     # Stop when there are not enough points left
-#     number_iterations = arr.shape[0] - window
-#     pval_array = np.zeros(number_iterations)
+    # Get the value in arr at the emergence_arg index
+    value_at_arg = arr[emergence_arg]
     
-#     for t in np.arange(number_iterations):
-#         arr_subset = arr[t: t+window]
-#         p_value = return_ttest_pvalue(base_list, arr_subset)
-#         pval_array[t] = p_value
-
-#     # TODO: This could be done in the apply_ufunc
-#     lenghth_diff = arr.shape[0] - pval_array.shape[0]
-#     pval_array = np.append(pval_array, np.array([np.nan] *lenghth_diff))
-#     return pval_array 
+    return value_at_arg
