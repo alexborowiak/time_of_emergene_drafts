@@ -17,8 +17,8 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
 
 import toe_constants as toe_const
-
-
+import utils
+logger = utils.get_notebook_logger()
 
 def return_ttest_pvalue(test_arr, base_arr):
     """
@@ -399,12 +399,14 @@ def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_ye
     if np.isnan(year_of_emergence) or np.all(np.isnan(arr)): return arr
 
     # The integer arguement of where the time_years equals the emergence arg
+
     emergence_arg = np.argwhere(time_years == np.round(year_of_emergence)).item()
 
     to_return = np.zeros_like(arr)
 
     # Set all values to 1 after emergence has occured
     to_return[emergence_arg:] =  1
+    #print(np.unique(to_return))
 
     return to_return
 
@@ -433,7 +435,8 @@ def percentage_lat_lons(ds_num, ds_denom, weights):
 
 
 
-def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_mask_ds:xr.Dataset, only_1s_ds:xr.Dataset
+def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_mask_ds:xr.Dataset, only_1s_ds:xr.Dataset,
+                                         logginglevel='ERROR'
                                         ) -> xr.Dataset:
     """
     Calculate the percentage of stability for regions based on binary emergence data.
@@ -453,35 +456,53 @@ def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_m
     values of 1 where the event has occurred.
     """
 
+    utils.change_logginglevel(logginglevel)
     # Calculating the weights
     weights = np.cos(np.deg2rad(binary_emergence_ds.lat))
     weights.name = 'weights'
 
     # The two regions that need the land-sea make
     NEEDS_MASKING = ['land', 'ocean']
-    
-    ds_collection = []
 
+    ds_collection = [] # Storing all the datasets
+    points_in_region_dict = {} # The number of 
     for region in toe_const.regionLatLonTuples:
         region_name = region.value.name.lower()
         lat_slice = region.value.slice
         
         # Select data for the current region
         ds_region = binary_emergence_ds.sel(lat=lat_slice).expand_dims({'region':[region_name]})
-
         only_1s_ds_region = only_1s_ds.sel(lat=lat_slice)
+
+        logger.info(region_name)
+        logger.info(lat_slice)
+        logger.debug(ds_region.lat.values)
+        logger.debug(only_1s_ds_region.lat.values)
+
+        # Defininf this here so it can be masked if needed
+        max_number_of_points_in_region = xr.where(only_1s_ds_region, 1, 1)
         # Apply masking if needed
         if region_name in NEEDS_MASKING:
             mask_to_use_ds = xr.where(land_mask_ds, 0, 1) if region_name == 'land' else xr.where(land_mask_ds, 1, 0) 
             ds_region = ds_region.where(mask_to_use_ds)
             only_1s_ds_region = only_1s_ds_region.where(mask_to_use_ds)
-
+            max_number_of_points_in_region = max_number_of_points_in_region.where(mask_to_use_ds)
 
         # Compute the fraction stable
         time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
-        
+
         ds_collection.append(time_series_ds)
+
+        # Meta data on how may available point in this region
+        number_of_points_in_region = only_1s_ds_region.sum(dim=['lat', 'lon']).values.item()
+        max_number_of_points_in_region = max_number_of_points_in_region.sum(dim=['lat', 'lon']).values.item()
+        points_in_region_dict[region_name] = {
+            'available': number_of_points_in_region, 
+            'maximimum':max_number_of_points_in_region}
+        
     emergence_time_series_ds = xr.concat(ds_collection, dim='region')
+    emergence_time_series_ds.attrs = points_in_region_dict
+    logger.info('\n')
     return emergence_time_series_ds
 
 

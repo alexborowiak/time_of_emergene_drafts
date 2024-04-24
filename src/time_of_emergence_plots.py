@@ -34,7 +34,8 @@ def plot_multiseries_with_pvalues(
     labels:Dict[str, str] = {},
     fig=None,
     axes=None,
-    gs=None
+    gs=None,
+    return_figure=False,
 ):
     """
     Plot multiple time series with p-values and year of exceedance markers.
@@ -117,6 +118,8 @@ def plot_multiseries_with_pvalues(
     frame.set_color('white')  # Set the legend frame color to white
     frame.set_edgecolor('black')  # Set the legend frame edge color to black
     ax3.add_artist(legend)
+
+    if return_figure: return [fig, gs, [ax1, ax2, ax3]]
 
 
 
