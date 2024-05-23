@@ -59,8 +59,8 @@ def return_anderson_pvalue(test_arr, base_arr):
         float: Anderson-Darling test p-value.
     """
     if all(np.isnan(test_arr)) or all(np.isnan(base_arr)): return np.nan
-    # print(test_arr.shape, base_arr.shape)
-    return anderson_ksamp([test_arr, base_arr]).pvalue
+    # This change from pvalue to significance_level for some reasons
+    return anderson_ksamp([test_arr, base_arr]).significance_level
 
 
 
