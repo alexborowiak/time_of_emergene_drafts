@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as daskarray
-from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr
+from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr, levene, mannwhitneyu
 from numpy.typing import ArrayLike
 
 # My imports
@@ -19,6 +19,7 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 import toe_constants as toe_const
 import utils
 logger = utils.get_notebook_logger()
+
 
 def return_ttest_pvalue(test_arr, base_arr):
     """
@@ -33,18 +34,6 @@ def return_ttest_pvalue(test_arr, base_arr):
     """
     return ttest_ind(test_arr, base_arr, nan_policy='omit').pvalue
 
-def return_ks_pvalue(test_arr, base_arr):
-    """
-    Compute Kolmogorov-Smirnov test p-value between two arrays.
-
-    Parameters:
-        test_arr (ArrayLike): Array to test against base_arr.
-        base_arr (ArrayLike): Base array to compare against.
-
-    Returns:
-        float: Kolmogorov-Smirnov test p-value.
-    """
-    return ks_2samp(test_arr, base_arr).pvalue
 
 
 def return_anderson_pvalue(test_arr, base_arr):
@@ -63,6 +52,60 @@ def return_anderson_pvalue(test_arr, base_arr):
     return anderson_ksamp([test_arr, base_arr]).significance_level
 
 
+
+def return_statistical_pvalue(arr1, arr2, stats_test):
+    """
+    Calculate the p-value for a given statistical test for two arrays.
+
+    Parameters:
+    arr1 (numpy array): The first input array.
+    arr2 (numpy array): The second input array.
+
+    Returns:
+    float: The p-value of the specified statistical test.
+
+    Notes:
+    If either array contains only NaN values, the function returns NaN.
+    """
+    # Check if all values are nan
+    if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
+
+    # Remove nans
+    arr1 = arr1[np.isfinite(arr1)]
+    arr2 = arr2[np.isfinite(arr2)]
+
+    return stats_test(arr1, arr2).pvalue
+
+
+return_ks_pvalue = partial(return_statistical_pvalue, stats_test=ks_2samp)
+return_levene_pvalue = partial(return_statistical_pvalue, stats_test=levene)
+return_mannwhitney_pvalue = partial(return_statistical_pvalue, stats_test=mannwhitneyu)
+
+
+# def return_ks_pvalue(test_arr, base_arr):
+#     """
+#     Compute Kolmogorov-Smirnov test p-value between two arrays.
+
+#     Parameters:
+#         test_arr (ArrayLike): Array to test against base_arr.
+#         base_arr (ArrayLike): Base array to compare against.
+
+#     Returns:
+#         float: Kolmogorov-Smirnov test p-value.
+#     """
+#     return ks_2samp(test_arr, base_arr).pvalue
+
+# def return_levene_pvalue(arr1, arr2):
+#     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
+#     arr1 = arr1[np.isfinite(arr1)]
+#     arr2 = arr2[np.isfinite(arr2)]
+#     return levene(arr1, arr2).pvalue
+
+# def return_mannwhitney_pvalue(arr1, arr2):
+#     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
+#     arr1 = arr1[np.isfinite(arr1)]
+#     arr2 = arr2[np.isfinite(arr2)]
+#     return mannwhitneyu(arr1, arr2).pvalue
 
 def stats_test_1d_array(arr, stats_func:Callable, window: int=20, base_period_length:int = 50):
     """

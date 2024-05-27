@@ -146,3 +146,28 @@ def trend_fit(da:xr.DataArray, method:str=None, order:int=1, lowess_window:int=3
     return da_trend
 
 
+
+def apply_lowess(arr):
+    """
+    Apply the LOWESS (Locally Weighted Scatterplot Smoothing) algorithm to a 1D array.
+
+    Parameters:
+    arr (numpy array): The input array to be smoothed.
+
+    Returns:
+    numpy array: The smoothed array.
+
+    Notes:
+    If the input array contains only NaN values, the function returns the original array.
+    """
+    # Check if all elements in the array are NaN
+    if all(np.isnan(arr)): 
+        return arr
+
+    # Create an array of x values (indices) for the input array
+    x = np.arange(arr.shape[0])
+
+    # Apply the LOWESS algorithm
+    yhat = lowess(arr, x, return_sorted=False)
+
+    return yhat
