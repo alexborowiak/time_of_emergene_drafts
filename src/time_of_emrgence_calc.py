@@ -21,19 +21,6 @@ import utils
 logger = utils.get_notebook_logger()
 
 
-def return_ttest_pvalue(test_arr, base_arr):
-    """
-    Compute T-Test p-value between two arrays.
-
-    Parameters:
-        test_arr (ArrayLike): Array to test against base_arr.
-        base_arr (ArrayLike): Base array to compare against.
-
-    Returns:
-        float: T-Test p-value.
-    """
-    return ttest_ind(test_arr, base_arr, nan_policy='omit').pvalue
-
 
 
 def return_anderson_pvalue(test_arr, base_arr):
@@ -49,8 +36,11 @@ def return_anderson_pvalue(test_arr, base_arr):
     """
     if all(np.isnan(test_arr)) or all(np.isnan(base_arr)): return np.nan
     # This change from pvalue to significance_level for some reasons
-    return anderson_ksamp([test_arr, base_arr]).significance_level
-
+    try: 
+        pval = anderson_ksamp([test_arr, base_arr]).significance_level
+    except ValueError:
+        return np.nan
+    return pval
 
 
 def return_statistical_pvalue(arr1, arr2, stats_test):
@@ -77,35 +67,12 @@ def return_statistical_pvalue(arr1, arr2, stats_test):
     return stats_test(arr1, arr2).pvalue
 
 
+return_ttest_pvalue = partial(return_statistical_pvalue, stats_test=ttest_ind)
 return_ks_pvalue = partial(return_statistical_pvalue, stats_test=ks_2samp)
 return_levene_pvalue = partial(return_statistical_pvalue, stats_test=levene)
 return_mannwhitney_pvalue = partial(return_statistical_pvalue, stats_test=mannwhitneyu)
 
 
-# def return_ks_pvalue(test_arr, base_arr):
-#     """
-#     Compute Kolmogorov-Smirnov test p-value between two arrays.
-
-#     Parameters:
-#         test_arr (ArrayLike): Array to test against base_arr.
-#         base_arr (ArrayLike): Base array to compare against.
-
-#     Returns:
-#         float: Kolmogorov-Smirnov test p-value.
-#     """
-#     return ks_2samp(test_arr, base_arr).pvalue
-
-# def return_levene_pvalue(arr1, arr2):
-#     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
-#     arr1 = arr1[np.isfinite(arr1)]
-#     arr2 = arr2[np.isfinite(arr2)]
-#     return levene(arr1, arr2).pvalue
-
-# def return_mannwhitney_pvalue(arr1, arr2):
-#     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
-#     arr1 = arr1[np.isfinite(arr1)]
-#     arr2 = arr2[np.isfinite(arr2)]
-#     return mannwhitneyu(arr1, arr2).pvalue
 
 def stats_test_1d_array(arr, stats_func:Callable, window: int=20, base_period_length:int = 50):
     """
@@ -223,22 +190,6 @@ def return_hawkins_signal_and_noise(lt: ArrayLike, gt: ArrayLike, return_reconst
         return signal_to_return, noise_to_return, reconstructed_lt
     return signal_to_return, noise_to_return
 
-    # # Pad NaNs back to the filtered signal and noise arrays
-    # signal = np.concatenate([[np.nan] * number_nans_at_start, signal, [np.nan] * number_nans_at_end])
-    # noise = np.concatenate([[np.nan] * number_nans_at_start, noise, [np.nan] * number_nans_at_end])
-
-    # # Find the number of NaNs at the start and end of lt
-    # number_nans_at_start = np.where(~np.isnan(lt))[0][0]
-    # number_nans_at_end = np.where(~np.isnan(lt[::-1]))[0][0]
-
-    # # Remove start NaNs
-    # lt = lt[number_nans_at_start:]
-    # gt = gt[number_nans_at_start:]
-
-    # # Remove end NaNs if there are any
-    # if number_nans_at_end > 0:
-    #     lt = lt[:-number_nans_at_end]
-    #     gt = gt[:-number_nans_at_end]
 
 def get_exceedance_arg(arr, time, threshold, comparison_func):
     """
