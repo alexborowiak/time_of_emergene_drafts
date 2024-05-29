@@ -523,3 +523,107 @@ def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_yea
     value_at_arg = arr[emergence_arg]
     
     return value_at_arg
+
+
+
+import numpy as np
+from scipy.stats import gaussian_kde
+
+def get_rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
+    """
+    Calculate the relative frequencies of values in the array within the specified bins.
+    
+    Parameters:
+    arr (numpy.ndarray): Input array of values.
+    bins (numpy.ndarray): Array of bin edges.
+
+    Returns:
+    numpy.ndarray: Relative frequencies of values within the bins.
+    """
+    # Remove NaN and infinite values from the array
+    arr = arr[np.isfinite(arr)]
+    
+    # Calculate the counts of values in each bin
+    counts, _ = np.histogram(arr, bins=bins, density=False)
+    
+    # Calculate the relative frequencies
+    rel_freq = counts / len(arr)
+    return rel_freq
+
+def farctional_geometric_area(arr_best:np.ndarray, base_arr:np.ndarray)->float:
+    """
+    Calculate the fractional geometric area between the KDEs of two arrays.
+    
+    Parameters:
+    arr_best (numpy.ndarray): First input array of values.
+    base_arr (numpy.ndarray): Second input array of values.
+    
+    Returns:
+    float: Fractional geometric overlap area as a percentage. Returns NaN if any array is fully NaN.
+    """
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr_best)) or np.all(np.isnan(base_arr)): return np.nan
+    
+    # Find the maximum and minimum values from the combined arrays
+    bmax = np.nanmax(np.concatenate([base_arr, arr_best]))
+    bmin = np.nanmin(np.concatenate([base_arr, arr_best]))
+    
+    # Generate a linear space between the minimum and maximum values
+    x = np.linspace(bmin, bmax, 1000)
+    
+    # Remove NaN and infinite values from the arrays
+    base_arr = base_arr[np.isfinite(base_arr)]
+    arr_best = arr_best[np.isfinite(arr_best)]
+    
+    # Compute the KDE for each array
+    kde1 = gaussian_kde(base_arr)
+    kde2 = gaussian_kde(arr_best)
+    kde_vals1 = kde1(x)
+    kde_vals2 = kde2(x)
+    
+    # Calculate the overlap shape by taking the minimum of the two KDEs at each point
+    overlap_shape = np.min(np.vstack([kde_vals2, kde_vals1]), axis=0)
+    
+    # Integrate the overlap shape to find the overlap area
+    overlap_area = np.trapz(overlap_shape, x)
+    
+    # Convert the overlap area to a percentage
+    overlap_percent = overlap_area * 100
+    return overlap_percent
+
+def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray)->float:
+    """
+    Calculate the Perkins Skill Score (PSS) between two arrays.
+    
+    Parameters:
+    arr_best (numpy.ndarray): First input array of values.
+    base_arr (numpy.ndarray): Second input array of values.
+    
+    Returns:
+    float: Perkins Skill Score as a percentage. Returns NaN if any array is fully NaN.
+    """
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr)) or np.all(np.isnan(base_arr)): return np.nan
+    
+    # Find the maximum and minimum values from the combined arrays
+    bmax = np.nanmax(np.concatenate([base_arr, arr]))
+    bmin = np.nanmin(np.concatenate([base_arr, arr]))
+    
+    # Define the bin width and create bin edges
+    step = 0.5
+    bins = np.arange(bmin, bmax + step, step)
+    
+    # Calculate the relative frequencies for each array
+    rel_freq_base = get_rel_freq(base_arr, bins)
+    rel_freq_arr = get_rel_freq(arr, bins)
+    
+    # Stack the relative frequencies for comparison
+    freq_stack = np.vstack([rel_freq_base, rel_freq_arr])
+    
+    # Find the minimum relative frequency at each bin
+    freq_min = np.nanmin(freq_stack, axis=0)
+    
+    # Sum the minimum frequencies and convert to a percentage
+    freq_min_sum_percent = np.sum(freq_min) * 100
+    
+    return float(freq_min_sum_percent)

@@ -4,10 +4,12 @@ PVALUE_TESTS = ['ks', 'ttest', 'anderson']
 
 
 NAME_CONVERSION_DICT = {
-    'signal_to_noise': 'Signal-to-Noise Ratio',
-    'ks': 'Kolmogorov-Smirnov',
+    'signal_to_noise': 'S/N Ratio',#'Signal-to-Noise Ratio'
+    'ks': 'KS', #Kolmogorov-Smirnov
     'ttest': 'T-Test',
-    'anderson': 'Anderson-Darling'}
+    'anderson': 'Anderson-Darling',
+    'perkins': 'Perkins Skill Score', 
+    'frac': 'Fractional Geometric Area'}
 
 
 class LocationBoxes(Enum):
