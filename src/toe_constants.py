@@ -1,7 +1,23 @@
 from enum import Enum
 from typing import NamedTuple
-PVALUE_TESTS = ['ks', 'ttest', 'anderson']
 
+# The threshold of emergence for the different tests
+PVALUE_THESHOLD1 = 0.01
+OVERLAP_THRESHOLD = 62
+SN_THRESHOLD1 = 1
+
+PVALUE_TESTS = ['ks', 'ttest', 'anderson']
+OVERLAP_TESTS = ['frac', 'perkins']
+
+
+EMERGENCE_THRESHOLD_DICT = {
+    'signal_to_noise': SN_THRESHOLD1,
+    'ks': PVALUE_THESHOLD1,
+    'anderson': PVALUE_THESHOLD1,
+    'ttest': PVALUE_THESHOLD1,
+    'frac': OVERLAP_THRESHOLD,
+    'perkins': OVERLAP_THRESHOLD
+}
 
 NAME_CONVERSION_DICT = {
     'signal_to_noise': 'S/N Ratio',#'Signal-to-Noise Ratio'
