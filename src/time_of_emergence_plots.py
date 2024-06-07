@@ -19,7 +19,8 @@ TEST_PLOT_DICT = {
     'ttest': {'color': 'darkorange', 'marker': 'x'},
     'anderson': {'color': 'sienna', 'marker': '^'},
     'signal_to_noise': {'color': 'blue', 'marker': 'o'},
-    'frac': {'color': 'silver', ',marker':'x'},
+    'signal_to_noise_lowess': {'color': 'lightseagreen', 'marker': 'o'},
+    'frac': {'color': 'violet', ',marker':'x'},
     'perkins': {'color':'dimgrey', 'marker':'x'}
 }
 
@@ -55,8 +56,8 @@ def plot_multiseries_with_pvalues(
     Returns:
         None
     """
-    fig = plt.figure(figsize=(12, 12)) if fig is None else fig
-    gs = gridspec.GridSpec(4, 1, hspace=0) if gs is None else gs
+    fig = plt.figure(figsize=(12, 15)) if fig is None else fig
+    gs = gridspec.GridSpec(4, 1, hspace=0.2) if gs is None else gs
 
     # Moved the best raw data to the top
     ax1, ax2, ax3, ax4 = [fig.add_subplot(gs[i]) for i in range(4)] if axes is None else axes
@@ -66,39 +67,47 @@ def plot_multiseries_with_pvalues(
     ax1.plot(best_ds_smean.time.values, best_ds_smean.values, color='black', alpha=0.7)
 
     time = series_ds.time.values
-    legend_lines = []  # For storing lines for the legend
+    legend_lines_pvalue = []  # For storing lines for the legend
+    legend_lines_overlap = []  # For storing lines for the legend
+
     for series_name in series_ds.data_vars:
         series_data = series_ds[series_name]
 
         
         if series_name == 'signal_to_noise':
             ax = ax2
-            series_vals = series_data
+            # series_vals = series_data
         elif series_name in toe_const.PVALUE_TESTS:
             ax = ax3
-            series_vals = flip_value(series_data.to_numpy())
+            # series_vals = flip_value(series_data.to_numpy())
 
         elif series_name in toe_const.OVERLAP_TESTS:
             ax = ax4
-            series_vals = threshold = flip_value(series_data, 100)
-
+            # series_vals = threshold = flip_value(series_data, 100)
+        series_vals = series_data
         color = TEST_PLOT_DICT[series_name]['color']
         label = toe_const.NAME_CONVERSION_DICT.get(series_name, series_name)
         ax.plot(time, series_vals, c=color, label=label)
         if series_name in toe_const.PVALUE_TESTS:
-            legend_lines.append(ax.plot([], [], color=color, label=label)[0])
+            legend_lines_pvalue.append(ax.plot([], [], color=color, label=label)[0])
+        if series_name in toe_const.OVERLAP_TESTS:
+            legend_lines_overlap.append(ax.plot([], [], color=color, label=label)[0]) 
 
         threshold = toe_const.EMERGENCE_THRESHOLD_DICT.get(series_name, None)
         if threshold:
-            if series_name in toe_const.PVALUE_TESTS: threshold = flip_value(threshold)
-            elif series_name in toe_const.OVERLAP_TESTS: threshold = flip_value(threshold, 100)
+            # if series_name in toe_const.PVALUE_TESTS: threshold = flip_value(threshold)
+            # elif series_name in toe_const.OVERLAP_TESTS: threshold = flip_value(threshold, 100)
             ax.axhline(threshold, color=color, linestyle='--', alpha=0.3)
 
-    for ax, color in zip([ax3, ax2], ['red', 'blue']):
-        ax.spines['left'].set_color(color)
-        ax.tick_params(axis='y', color=color, labelcolor=color)
 
-    for ax in axes: ax.set_xlim(*np.take(best_ds_smean.time.values, [0, -1]))
+    ax3.spines['left'].set_color(TEST_PLOT_DICT['ks']['color'])
+    ax2.spines['left'].set_color(TEST_PLOT_DICT['signal_to_noise']['color'])
+    ax4.spines['left'].set_color(TEST_PLOT_DICT['frac']['color'])
+    # for ax, color in zip([ax3, ax2], ['red', 'blue']):
+    #     ax.spines['left'].set_color(color)
+    #     ax.tick_params(axis='y', color=color, labelcolor=color)
+
+    # for ax in axes: ax.set_xlim(*np.take(best_ds_smean.time.values, [0, -1]))
 
     
     for test_name in exceedance_year_ds.data_vars:
@@ -111,8 +120,8 @@ def plot_multiseries_with_pvalues(
         # Get the y-value
         val = float(series_year_select.values)
         
-        if test_name in toe_const.PVALUE_TESTS: val = flip_value(val)
-        if test_name in toe_const.OVERLAP_TESTS: val = flip_value(val, 100)
+        # if test_name in toe_const.PVALUE_TESTS: val = flip_value(val)
+        # if test_name in toe_const.OVERLAP_TESTS: val = flip_value(val, 100)
         
         color = TEST_PLOT_DICT[test_name].get('color', 'k')  # Get color from dict or default to black
         if test_name == 'signal_to_noise':ax = ax2
@@ -123,28 +132,48 @@ def plot_multiseries_with_pvalues(
                    marker=TEST_PLOT_DICT[test_name].get('marker', 'o'), 
                    s=65)
 
-    ax4.set_ylabel('Percent Overlap (%)', fontsize=14)
-    ax3.set_ylabel('p-value', color='red', fontsize=14)
-    ax2.set_ylabel('Signal-to-Noise Ratio', color='blue', fontsize=14)
+    ax4.set_ylabel('Percent Overlap (%)', fontsize=18)
+    ax4.set_ylim(105, -5)
+    ax3.set_ylabel('p-value', color='red', fontsize=18)
+    ax3.set_ylim(1.05, -0.05)
+    ax2.set_ylabel('Signal-to-Noise Ratio', color='blue', fontsize=18)
     ax1.set_ylabel(
         'Surface Temperature\nAnomaly (K)' if 'ylabel_bottom' not in labels else labels['ylabel_bottom']
-        , fontsize=14)
-    ax1.set_xlabel('Year')
+        , fontsize=18)
+    
+    ax4.set_xlabel('Year')
 
     # Both these tests have been flipped. Thus, the labels need to be flipped.
     # ax3.set_yticklabels(ax3.get_yticklabels()[::-1])  # Reverse the y-axis tick labels
     # ax4.set_yticklabels(ax4.get_yticklabels()[::-1])  # Reverse the y-axis tick labels
 
-    list(map(lambda ax: ax.grid(True), axes)) # Add the grid 
+    list(map(lambda ax: ax.grid(True, linestyle='--', alpha=0.65), axes)) # Add the grid 
     list(map(lambda ax: ax.set_xlim(*np.take(time, [0, -1])), axes)) # Set the lims
+    # list(map()
+
+    for ax in axes:
+        tick_locations = list(filter(lambda t: t.year % 10 == 0, time))
+        ax.set_xticks(tick_locations)
+        ax.set_xticklabels(list(map(lambda t:t.year, tick_locations)))
     
     # Create the legend
-    legend = ax3.legend(ncol=1, handles=legend_lines, loc='center', bbox_to_anchor=(0.8, 0.5), 
-                        frameon=True, fontsize=12)
+    legend = ax3.legend(ncol=1, handles=legend_lines_pvalue, loc='center', bbox_to_anchor=(0.8, 0.5), 
+                        frameon=True, fontsize=18)
     frame = legend.get_frame()
     frame.set_color('white')  # Set the legend frame color to white
     frame.set_edgecolor('black')  # Set the legend frame edge color to black
     ax3.add_artist(legend)
+
+    legend_overlap = ax4.legend(ncol=1, handles=legend_lines_overlap, loc='center', bbox_to_anchor=(0.3, 0.8), 
+                        frameon=True, fontsize=18)
+    frame2 = legend_overlap.get_frame()
+    frame2.set_color('white')  # Set the legend frame color to white
+    frame2.set_edgecolor('black')  # Set the legend frame edge color to black
+    ax4.add_artist(legend_overlap)
+
+    for ax in axes:
+        for spine in ax.spines.values():
+            spine.set_linewidth(2)
 
     if return_figure: return [fig, gs, [ax1, ax2, ax3, ax4]]
 

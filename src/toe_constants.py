@@ -11,6 +11,7 @@ OVERLAP_TESTS = ['frac', 'perkins']
 
 
 EMERGENCE_THRESHOLD_DICT = {
+    'signal_to_noise_lowess': SN_THRESHOLD1,
     'signal_to_noise': SN_THRESHOLD1,
     'ks': PVALUE_THESHOLD1,
     'anderson': PVALUE_THESHOLD1,
@@ -21,6 +22,7 @@ EMERGENCE_THRESHOLD_DICT = {
 
 NAME_CONVERSION_DICT = {
     'signal_to_noise': 'S/N Ratio',#'Signal-to-Noise Ratio'
+    'signal_to_noise_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
     'ks': 'KS', #Kolmogorov-Smirnov
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',
