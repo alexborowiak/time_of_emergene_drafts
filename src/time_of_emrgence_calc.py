@@ -43,6 +43,26 @@ def return_anderson_pvalue(test_arr, base_arr):
     return pval
 
 
+def remove_nans(arr1, arr2):
+    """
+    Remove NaN values from two input arrays.
+
+    Parameters:
+    arr1 (numpy array): The first input array.
+    arr2 (numpy array): The second input array.
+
+    Returns:
+    tuple: Two arrays with NaN values removed.
+
+    Notes:
+    This function uses NumPy's isfinite function to identify and remove NaN values.
+    """
+    # Remove NaN values using NumPy's isfinite function
+    arr1 = arr1[np.isfinite(arr1)]  # Remove NaN values from arr1
+    arr2 = arr2[np.isfinite(arr2)]  # Remove NaN values from arr2
+
+    return arr1, arr2  # Return the updated arrays
+
 def return_statistical_pvalue(arr1, arr2, stats_test):
     """
     Calculate the p-value for a given statistical test for two arrays.
@@ -59,14 +79,12 @@ def return_statistical_pvalue(arr1, arr2, stats_test):
     """
     # Check if all values are nan
     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
-
-    # Remove nans
-    arr1 = arr1[np.isfinite(arr1)]
-    arr2 = arr2[np.isfinite(arr2)]
+    arr1, ar2 = remove_nans(arr1, arr2)
 
     return stats_test(arr1, arr2).pvalue
 
 
+# Initialising multiple p-value tests
 return_ttest_pvalue = partial(return_statistical_pvalue, stats_test=ttest_ind)
 return_ks_pvalue = partial(return_statistical_pvalue, stats_test=ks_2samp)
 return_levene_pvalue = partial(return_statistical_pvalue, stats_test=levene)
@@ -177,7 +195,8 @@ def return_hawkins_signal_and_noise(lt: ArrayLike, gt: ArrayLike, return_reconst
 
     signal_to_return = np.empty_like(gt)
     noise_to_return = np.empty_like(lt)
-    
+
+    # Re-add all the nans back in where they were before
     signal_to_return.fill(np.nan)
     noise_to_return.fill(np.nan)
 
