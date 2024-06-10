@@ -25,6 +25,20 @@ TEST_PLOT_DICT = {
 }
 
 
+def format_lat_lon_title(location):
+    lat = location['lat']
+    lon = location['lon']
+    
+    lat_direction = 'N' if lat >= 0 else 'S'
+    lon_direction = 'E' if lon >= 0 else 'W'
+    
+    lat_str = f"{abs(lat)}° {lat_direction}"
+    lon_str = f"{abs(lon)}° {lon_direction}"
+    
+    return f"{lat_str}, {lon_str}"
+
+
+
 def flip_value(pvalue:float, flip_around:float=1):
     '''
     The p-value is often best to plot with 0 towards the top, however, the axes often erros and doesn't allow the flip.

@@ -413,8 +413,8 @@ def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_ye
 
     # The integer arguement of where the time_years equals the emergence arg
     # print(year_of_emergence)
-    emergence_arg = np.argwhere(time_years == np.round(year_of_emergence))
-    # print(emergence_arg)
+    emergence_arg = np.argwhere(time_years == np.round(year_of_emergence))    
+    #print(year_of_emergence, emergence_arg)   
     emergence_arg = emergence_arg.item()
 
     to_return = np.zeros_like(arr)
@@ -631,8 +631,10 @@ def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray)->float:
     bmin = np.nanmin(np.concatenate([base_arr, arr]))
     
     # Define the bin width and create bin edges
-    step = 0.5
-    bins = np.arange(bmin, bmax + step, step)
+    bins = np.linspace(bmin, bmax, 25)
+    
+    #step = 0.5
+    #bins = np.arange(bmin, bmax + step, step)
     
     # Calculate the relative frequencies for each array
     rel_freq_base = get_rel_freq(base_arr, bins)
