@@ -17,7 +17,7 @@ def open_gpcc(resample=False):
     Returns:
         xarray.Dataset: Processed GPCC dataset with yearly sum.
     """
-    PRECIP_PATH = '/g/data/w40/ab2313/PhD/time_of_emergence/GPCC/precip.mon.total.v7.nc'
+    PRECIP_PATH = '/g/data/w40/ab2313/time_of_emergence/GPCC/precip.mon.total.v7.nc'
     print(f'Opening GPCC dataset from - {PRECIP_PATH}')
     # Open dataset with chunking for efficient processing
     gcpp_raw_ds = xr.open_dataset(PRECIP_PATH, chunks={'time':-1, 'lat':120, 'lon':180}).precip
@@ -44,7 +44,7 @@ def open_best():
         xarray.Dataset: Processed BEST dataset with yearly mean temperature.
     """
     # Define file path
-    ROOT_DIR = '/g/data/w40/ab2313/PhD/time_of_emergence'
+    ROOT_DIR = '/g/data/w40/ab2313/time_of_emergence'
 
     fname = os.path.join(ROOT_DIR, 'best', 'Land_and_Ocean_LatLong1_time_chunk.zarr')
     print(f'Opening best dataset from - {fname}')

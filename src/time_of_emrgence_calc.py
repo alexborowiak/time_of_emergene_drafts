@@ -5,11 +5,13 @@ from typing import Optional, Callable, Union, Tuple, NamedTuple
 from itertools import combinations
 from enum import Enum
 
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as daskarray
-from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr, levene, mannwhitneyu
+from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr, levene, mannwhitneyu, kruskal, gaussian_kde
+
 from numpy.typing import ArrayLike
 
 # My imports
@@ -89,6 +91,9 @@ return_ttest_pvalue = partial(return_statistical_pvalue, stats_test=ttest_ind)
 return_ks_pvalue = partial(return_statistical_pvalue, stats_test=ks_2samp)
 return_levene_pvalue = partial(return_statistical_pvalue, stats_test=levene)
 return_mannwhitney_pvalue = partial(return_statistical_pvalue, stats_test=mannwhitneyu)
+return_kruskal_pvalue = partial(return_statistical_pvalue, stats_test=kruskal)
+
+
 
 
 
@@ -547,8 +552,7 @@ def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_yea
 
 
 
-import numpy as np
-from scipy.stats import gaussian_kde
+
 
 def get_rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
     """
@@ -571,23 +575,45 @@ def get_rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
     rel_freq = counts / len(arr)
     return rel_freq
 
-def farctional_geometric_area(arr_best:np.ndarray, base_arr:np.ndarray)->float:
+
+def caculate_distribution_overlap(dist1, dist2, x):
+    # Calculate the overlap shape by taking the minimum of the two KDEs at each point
+    overlap_shape = np.min(np.vstack([dist1, dist2]), axis=0)
+    
+    # Integrate the overlap shape to find the overlap area
+    overlap_area = np.trapz(overlap_shape, x)
+    
+    # Convert the overlap area to a percentage
+    overlap_percent = overlap_area * 100
+
+    return overlap_percent
+# from scipy.integrate import simps
+def farctional_geometric_area(arr_best:np.ndarray, base_arr:np.ndarray, return_all=False,
+                             kde_kwargs=None)->float:
     """
     Calculate the fractional geometric area between the KDEs of two arrays.
     
     Parameters:
     arr_best (numpy.ndarray): First input array of values.
     base_arr (numpy.ndarray): Second input array of values.
-    
+    return_all (bool): If False (default) just return the overlap percent. If True
+                        return the kdes
     Returns:
     float: Fractional geometric overlap area as a percentage. Returns NaN if any array is fully NaN.
     """
+
+    if not kde_kwargs: kde_kwargs = {}
+        
     # Check if any input array is fully NaN
     if np.all(np.isnan(arr_best)) or np.all(np.isnan(base_arr)): return np.nan
     
     # Find the maximum and minimum values from the combined arrays
-    bmax = np.nanmax(np.concatenate([base_arr, arr_best]))
+    bmax = np.nanmax(np.concatenate([base_arr, arr_best]))# * 1.4
     bmin = np.nanmin(np.concatenate([base_arr, arr_best]))
+    val_range = bmax-bmin
+    bmax = bmax+val_range/3
+    bmin = bmin-val_range/3
+    # bmin = bmin * 1.4 if bmin < 0 else bmin*0.6
     
     # Generate a linear space between the minimum and maximum values
     x = np.linspace(bmin, bmax, 1000)
@@ -597,49 +623,53 @@ def farctional_geometric_area(arr_best:np.ndarray, base_arr:np.ndarray)->float:
     arr_best = arr_best[np.isfinite(arr_best)]
     
     # Compute the KDE for each array
-    kde1 = gaussian_kde(base_arr)
-    kde2 = gaussian_kde(arr_best)
+    kde1 = gaussian_kde(base_arr, **kde_kwargs)
+    kde2 = gaussian_kde(arr_best, **kde_kwargs)
     kde_vals1 = kde1(x)
     kde_vals2 = kde2(x)
+
+    # Normalize the KDEs to ensure they integrate to 1 (i.e., are proper probability densities)
+    kde_vals1 /= np.trapz(kde_vals1, x)
+    kde_vals2 /= np.trapz(kde_vals2, x)
     
-    # Calculate the overlap shape by taking the minimum of the two KDEs at each point
-    overlap_shape = np.min(np.vstack([kde_vals2, kde_vals1]), axis=0)
+    overlap_percent = caculate_distribution_overlap(kde_vals1, kde_vals2, x)
+
+    if return_all: 
+        return x, kde_vals1, kde_vals2, overlap_percent
     
-    # Integrate the overlap shape to find the overlap area
-    overlap_area = np.trapz(overlap_shape, x)
-    
-    # Convert the overlap area to a percentage
-    overlap_percent = overlap_area * 100
     return overlap_percent
 
-def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray)->float:
+
+def discrete_pdf(arr, bins:np.ndarray=None, num_bins:int=25) -> np.ndarray:
     """
-    Calculate the Perkins Skill Score (PSS) between two arrays.
-    
+    Computes the discrete probability density function (PDF) of the input array.
+
     Parameters:
-    arr_best (numpy.ndarray): First input array of values.
-    base_arr (numpy.ndarray): Second input array of values.
-    
+    -----------
+    arr : np.ndarray
+        Input array of data points.
+    bins : np.ndarray, optional
+        An array of bin edges. If not provided, bins will be automatically generated.
+    num_bins : int, optional
+        The number of bins to use if bins are not provided. Default is 25.
+
     Returns:
-    float: Perkins Skill Score as a percentage. Returns NaN if any array is fully NaN.
+    --------
+    bins : np.ndarray
+        The array of bin edges used for computing the PDF.
+    rel_freq : np.ndarray
+        The relative frequency of data points within each bin, representing the PDF.
     """
-    # Check if any input array is fully NaN
-    if np.all(np.isnan(arr)) or np.all(np.isnan(base_arr)): return np.nan
     
-    # Find the maximum and minimum values from the combined arrays
-    bmax = np.nanmax(np.concatenate([base_arr, arr]))
-    bmin = np.nanmin(np.concatenate([base_arr, arr]))
+    if bins is None: bins = np.linspace(np.nanmin(arr), np.nanmax(arr), num_bins)
+
+    rel_freq = get_rel_freq(arr, bins)
+
+    return bins, rel_freq
+
     
-    # Define the bin width and create bin edges
-    bins = np.linspace(bmin, bmax, 25)
     
-    #step = 0.5
-    #bins = np.arange(bmin, bmax + step, step)
-    
-    # Calculate the relative frequencies for each array
-    rel_freq_base = get_rel_freq(base_arr, bins)
-    rel_freq_arr = get_rel_freq(arr, bins)
-    
+def discrete_distribution_overlap(rel_freq_base, rel_freq_arr):
     # Stack the relative frequencies for comparison
     freq_stack = np.vstack([rel_freq_base, rel_freq_arr])
     
@@ -648,5 +678,40 @@ def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray)->float:
     
     # Sum the minimum frequencies and convert to a percentage
     freq_min_sum_percent = np.sum(freq_min) * 100
+
+    return freq_min_sum_percent
+
+def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=None,
+                       num_bins:int=25)->float:
+    """
+    Calculate the Perkins Skill Score (PSS) between two arrays.
+    
+    Parameters:
+    arr_best (numpy.ndarray): First input array of values.
+    base_arr (numpy.ndarray): Second input array of values.
+    num_bins (int): The number of bins
+    
+    Returns:
+    float: Perkins Skill Score as a percentage. Returns NaN if any array is fully NaN.
+    """
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr)) or np.all(np.isnan(base_arr)): return np.nan
+
+    if bins is None:
+        # Find the maximum and minimum values from the combined arrays
+        bmax = np.nanmax(np.concatenate([base_arr, arr]))
+        bmin = np.nanmin(np.concatenate([base_arr, arr]))
+        
+        # Define the bin width and create bin edges
+        bins = np.linspace(bmin, bmax, num_bins)
+    
+    #step = 0.5
+    #bins = np.arange(bmin, bmax + step, step)
+    
+    # Calculate the relative frequencies for each array
+    rel_freq_base = get_rel_freq(base_arr, bins)
+    rel_freq_arr = get_rel_freq(arr, bins)
+    
+    freq_min_sum_percent = discrete_distribution_overlap(rel_freq_base, rel_freq_arr)
     
     return float(freq_min_sum_percent)

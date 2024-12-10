@@ -8,11 +8,12 @@ SN_THRESHOLD1 = 1
 
 PVALUE_TESTS = ['ks', 'ttest', 'anderson']
 OVERLAP_TESTS = ['frac', 'perkins']
+SN_TYPES = ['sn', 'sn_lowess', 'sn_poly', 'sn_average']
 
 
 EMERGENCE_THRESHOLD_DICT = {
-    'signal_to_noise_lowess': SN_THRESHOLD1,
-    'signal_to_noise': SN_THRESHOLD1,
+    'sn_lowess': SN_THRESHOLD1,
+    'sn': SN_THRESHOLD1,
     'ks': PVALUE_THESHOLD1,
     'anderson': PVALUE_THESHOLD1,
     'ttest': PVALUE_THESHOLD1,
@@ -21,8 +22,12 @@ EMERGENCE_THRESHOLD_DICT = {
 }
 
 NAME_CONVERSION_DICT = {
-    'signal_to_noise': 'S/N Ratio',#'Signal-to-Noise Ratio'
-    'signal_to_noise_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
+    'sn': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
+    'sn_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
+    'sn_lowess_rolling': 'S/N Ratio (LOWESS, Rolling)',#'Signal-to-Noise Ratio'
+    'sn_rolling': 'S/N Ratio (Rolling Mean)',#'Signal-to-Noise Ratio'
+    'sn_poly4': 'S/N Ratio (4th Order Polynomial)',#'Signal-to-Noise Ratio'
+    'sn_lowess_rolling_smooth': 'S/N Ratio (LOWESS, Rolling, smooth)',#'Signal-to-Noise Ratio'
     'ks': 'KS', #Kolmogorov-Smirnov
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',

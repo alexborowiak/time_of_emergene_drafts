@@ -15,14 +15,21 @@ import plotting_utils
 import toe_constants as toe_const
 
 TEST_PLOT_DICT = {
-    'ks': {'color': 'red', 'marker': 'o'},
-    'ttest': {'color': 'darkorange', 'marker': 'x'},
+    'sn': {'color': 'red', 'marker': 'o'},
+    'sn_lowess': {'color': 'green', 'marker': 'o'},
+    'sn_poly4': {'color': 'blue', 'marker': 'o'},
+    'sn_rolling': {'color': 'green', 'marker': 'o'},
+    'sn_lowess_rolling': {'color': 'darkgreen', 'marker': 'o'},
+    'sn_lowess_rolling_smooth': {'color': 'green', 'marker': 'o'},
+    
+    'ks': {'color': 'red', 'marker': '^'},
+    'ttest': {'color': 'darkorange', 'marker': '^'},
     'anderson': {'color': 'sienna', 'marker': '^'},
-    'signal_to_noise': {'color': 'blue', 'marker': 'o'},
-    'signal_to_noise_lowess': {'color': 'lightseagreen', 'marker': 'o'},
+
     'frac': {'color': 'violet', ',marker':'x'},
     'perkins': {'color':'dimgrey', 'marker':'x'}
 }
+
 
 
 def format_lat_lon_title(location):
@@ -88,7 +95,7 @@ def plot_multiseries_with_pvalues(
         series_data = series_ds[series_name]
 
         
-        if series_name == 'signal_to_noise':
+        if 'sn' in series_name:
             ax = ax2
             # series_vals = series_data
         elif series_name in toe_const.PVALUE_TESTS:
@@ -101,7 +108,9 @@ def plot_multiseries_with_pvalues(
         series_vals = series_data
         color = TEST_PLOT_DICT[series_name]['color']
         label = toe_const.NAME_CONVERSION_DICT.get(series_name, series_name)
+        
         ax.plot(time, series_vals, c=color, label=label)
+        
         if series_name in toe_const.PVALUE_TESTS:
             legend_lines_pvalue.append(ax.plot([], [], color=color, label=label)[0])
         if series_name in toe_const.OVERLAP_TESTS:
@@ -111,19 +120,19 @@ def plot_multiseries_with_pvalues(
         if threshold:
             # if series_name in toe_const.PVALUE_TESTS: threshold = flip_value(threshold)
             # elif series_name in toe_const.OVERLAP_TESTS: threshold = flip_value(threshold, 100)
-            ax.axhline(threshold, color=color, linestyle='--', alpha=0.3)
+            ax.axhline(threshold, color=color, linestyle='--', alpha=0.7)
 
-
+    ax2.spines['left'].set_color(TEST_PLOT_DICT['sn']['color'])
     ax3.spines['left'].set_color(TEST_PLOT_DICT['ks']['color'])
-    ax2.spines['left'].set_color(TEST_PLOT_DICT['signal_to_noise']['color'])
     ax4.spines['left'].set_color(TEST_PLOT_DICT['frac']['color'])
-    # for ax, color in zip([ax3, ax2], ['red', 'blue']):
-    #     ax.spines['left'].set_color(color)
-    #     ax.tick_params(axis='y', color=color, labelcolor=color)
-
-    # for ax in axes: ax.set_xlim(*np.take(best_ds_smean.time.values, [0, -1]))
 
     
+    ax2.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['sn']['color'])
+    ax3.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['ks']['color'])
+    ax4.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['frac']['color'])
+
+
+    # Scatter the year of emergence onto plot
     for test_name in exceedance_year_ds.data_vars:
         # Get the year of exceedance
         year_of_emergence_int = int(exceedance_year_ds[test_name].values)
@@ -134,11 +143,10 @@ def plot_multiseries_with_pvalues(
         # Get the y-value
         val = float(series_year_select.values)
         
-        # if test_name in toe_const.PVALUE_TESTS: val = flip_value(val)
-        # if test_name in toe_const.OVERLAP_TESTS: val = flip_value(val, 100)
+
         
         color = TEST_PLOT_DICT[test_name].get('color', 'k')  # Get color from dict or default to black
-        if test_name == 'signal_to_noise':ax = ax2
+        if 'sn' in test_name:ax = ax2
         elif test_name in toe_const.PVALUE_TESTS: ax = ax3
         elif test_name in toe_const.OVERLAP_TESTS: ax = ax4
             
@@ -146,8 +154,9 @@ def plot_multiseries_with_pvalues(
                    marker=TEST_PLOT_DICT[test_name].get('marker', 'o'), 
                    s=65)
 
-    ax4.set_ylabel('Percent Overlap (%)', fontsize=18)
+    ax4.set_ylabel('Percent Overlap (%)', fontsize=18, color=TEST_PLOT_DICT['frac']['color'])
     ax4.set_ylim(105, -5)
+    # Flip the y-axis limits
     ax3.set_ylabel('p-value', color='red', fontsize=18)
     ax3.set_ylim(1.05, -0.05)
     ax2.set_ylabel('Signal-to-Noise Ratio', color='blue', fontsize=18)
@@ -157,13 +166,9 @@ def plot_multiseries_with_pvalues(
     
     ax4.set_xlabel('Year')
 
-    # Both these tests have been flipped. Thus, the labels need to be flipped.
-    # ax3.set_yticklabels(ax3.get_yticklabels()[::-1])  # Reverse the y-axis tick labels
-    # ax4.set_yticklabels(ax4.get_yticklabels()[::-1])  # Reverse the y-axis tick labels
 
     list(map(lambda ax: ax.grid(True, linestyle='--', alpha=0.65), axes)) # Add the grid 
     list(map(lambda ax: ax.set_xlim(*np.take(time, [0, -1])), axes)) # Set the lims
-    # list(map()
 
     for ax in axes:
         tick_locations = list(filter(lambda t: t.year % 10 == 0, time))
