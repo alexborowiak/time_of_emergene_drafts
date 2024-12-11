@@ -7,7 +7,7 @@ OVERLAP_THRESHOLD = 62
 SN_THRESHOLD1 = 1
 
 PVALUE_TESTS = ['ks', 'ttest', 'anderson']
-OVERLAP_TESTS = ['frac', 'perkins']
+OVERLAP_TESTS = ['frac', 'perkins', 'hd']
 SN_TYPES = ['sn', 'sn_lowess', 'sn_poly', 'sn_average']
 
 
@@ -26,13 +26,16 @@ NAME_CONVERSION_DICT = {
     'sn_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
     'sn_lowess_rolling': 'S/N Ratio (LOWESS, Rolling)',#'Signal-to-Noise Ratio'
     'sn_rolling': 'S/N Ratio (Rolling Mean)',#'Signal-to-Noise Ratio'
+    'sn_anom': 'S/N Ratio (Anomalies)',#'Signal-to-Noise Ratio'
     'sn_poly4': 'S/N Ratio (4th Order Polynomial)',#'Signal-to-Noise Ratio'
     'sn_lowess_rolling_smooth': 'S/N Ratio (LOWESS, Rolling, smooth)',#'Signal-to-Noise Ratio'
     'ks': 'KS', #Kolmogorov-Smirnov
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',
     'perkins': 'Perkins Skill Score', 
-    'frac': 'Fractional Geometric Area'}
+    'frac': 'Fractional Geometric Area',
+    'hd': 'Hellinger Distance'    
+}
 
 
 class LocationBoxes(Enum):

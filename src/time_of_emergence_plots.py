@@ -15,10 +15,12 @@ import plotting_utils
 import toe_constants as toe_const
 
 TEST_PLOT_DICT = {
-    'sn': {'color': 'red', 'marker': 'o'},
+    'sn': {'color': 'green', 'marker': 'o'},
     'sn_lowess': {'color': 'green', 'marker': 'o'},
     'sn_poly4': {'color': 'blue', 'marker': 'o'},
-    'sn_rolling': {'color': 'green', 'marker': 'o'},
+    'sn_rolling': {'color': 'purple', 'marker': 'o'},
+    'sn_anom': {'color': 'darkorchid', 'marker': 'o'},
+
     'sn_lowess_rolling': {'color': 'darkgreen', 'marker': 'o'},
     'sn_lowess_rolling_smooth': {'color': 'green', 'marker': 'o'},
     
@@ -27,7 +29,8 @@ TEST_PLOT_DICT = {
     'anderson': {'color': 'sienna', 'marker': '^'},
 
     'frac': {'color': 'violet', ',marker':'x'},
-    'perkins': {'color':'dimgrey', 'marker':'x'}
+    'perkins': {'color':'dimgrey', 'marker':'x'},
+    'hd': {'color':'purple', 'marker':'x'}
 }
 
 

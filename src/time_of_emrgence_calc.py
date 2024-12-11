@@ -1,7 +1,7 @@
 import os, sys
 from functools import partial
 from itertools import groupby
-from typing import Optional, Callable, Union, Tuple, NamedTuple
+from typing import Optional, Callable, Union, Tuple, NamedTuple, List
 from itertools import combinations
 from enum import Enum
 
@@ -587,57 +587,169 @@ def caculate_distribution_overlap(dist1, dist2, x):
     overlap_percent = overlap_area * 100
 
     return overlap_percent
-# from scipy.integrate import simps
-def farctional_geometric_area(arr_best:np.ndarray, base_arr:np.ndarray, return_all=False,
-                             kde_kwargs=None)->float:
-    """
-    Calculate the fractional geometric area between the KDEs of two arrays.
-    
-    Parameters:
-    arr_best (numpy.ndarray): First input array of values.
-    base_arr (numpy.ndarray): Second input array of values.
-    return_all (bool): If False (default) just return the overlap percent. If True
-                        return the kdes
-    Returns:
-    float: Fractional geometric overlap area as a percentage. Returns NaN if any array is fully NaN.
-    """
 
-    if not kde_kwargs: kde_kwargs = {}
-        
-    # Check if any input array is fully NaN
-    if np.all(np.isnan(arr_best)) or np.all(np.isnan(base_arr)): return np.nan
+def calculate_hellinger_distance(
+    dist1: np.ndarray, 
+    dist2: np.ndarray, 
+    x: np.ndarray
+) -> float:
+    """
+    Calculate the Hellinger distance between two probability distributions.
+
+    The Hellinger distance measures the similarity between two probability
+    distributions and is bounded between 0 (identical distributions) and 1
+    (maximally different distributions).
+
+    Args:
+        dist1: An ndarray of values representing the first probability distribution.
+        dist2: An ndarray of values representing the second probability distribution.
+        x: An ndarray of evenly spaced points where the distributions are evaluated.
+
+    Returns:
+        The Hellinger distance between the two distributions.
+    """
+    # Compute the pointwise squared difference between the square roots of the distributions
+    squared_diff = (np.sqrt(dist1) - np.sqrt(dist2 ))**2
+
+    hellinger_distance = np.sqrt(np.sum(squared_diff) * (x[1] - x[0])) / np.sqrt(2)
+
+    return hellinger_distance * 100
+
+def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None) -> np.ndarray:
     
-    # Find the maximum and minimum values from the combined arrays
-    bmax = np.nanmax(np.concatenate([base_arr, arr_best]))# * 1.4
-    bmin = np.nanmin(np.concatenate([base_arr, arr_best]))
+    if bmin is None or bmax is None:
+        bmin = np.nanmin(arr)
+        bmax = np.nanmax(arr)
+        
     val_range = bmax-bmin
+   # Extend the range a bit
     bmax = bmax+val_range/3
     bmin = bmin-val_range/3
+    
+    x = np.linspace(bmin, bmax, 1000)
+    return x
+
+def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
+
+    # No x values provided - created own
+    if x is None: x = create_x(arr, bmin, bmax)
+        
+    # Remove NaN and infinite values from the arrays
+    arr = arr[np.isfinite(arr)]    
+    # Compute the KDE for each array
+    kde = gaussian_kde(arr, **kwargs)
+    kde_vals = kde(x)
+
+    kde_vals /= np.trapz(kde_vals, x)
+
+    return x, kde_vals
+
+def __overlap_helper_function(arr_future: np.ndarray, arr_base: np.ndarray, return_all=False,
+                             kde_kwargs=None, bmax=None, bmin=None, overlap_function=None) -> float:
+    """
+    Helper function to calculate the overlap between the KDEs of two arrays using a specified overlap function.
+
+    Parameters:
+    arr_future (numpy.ndarray): First input array of values.
+    arr_base (numpy.ndarray): Second input array of values.
+    return_all (bool): If False (default) just return the overlap percent. If True,
+                        return the KDEs and the overlap percent.
+    kde_kwargs (dict, optional): Keyword arguments to pass to the KDE creation function.
+    bmax (float, optional): Maximum value for the range of the KDE.
+    bmin (float, optional): Minimum value for the range of the KDE.
+    overlap_function (callable, optional): Function to calculate overlap between two distributions.
+                                           Should accept `kde_base`, `kde_future`, and `x` as arguments.
+
+    Returns:
+    float: Overlap area as calculated by the specified overlap function. Returns NaN if any array is fully NaN.
+    """
+
+    if not kde_kwargs:
+        kde_kwargs = {}
+
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr_future)) or np.all(np.isnan(arr_base)):
+        return np.nan
+
+    # Find the maximum and minimum values from the combined arrays
+    if bmax is None:
+        bmax = np.nanmax(np.concatenate([arr_base, arr_future]))
+    if bmin is None:
+        bmin = np.nanmin(np.concatenate([arr_base, arr_future]))
+
+    x = create_x(bmin=bmin, bmax=bmax)
+
+    _, kde_base = create_kde(arr_base, x, **kde_kwargs)
+    _, kde_future = create_kde(arr_future, x, **kde_kwargs)
+
+    if overlap_function is None:
+        raise ValueError("An overlap function must be provided.")
+
+    out_metric = overlap_function(kde_base, kde_future, x)
+
+    if return_all:
+        return x, kde_base, kde_future, out_metric
+
+    return out_metric
+  
+farctional_geometric_area = partial(__overlap_helper_function, overlap_function=caculate_distribution_overlap)
+hellinger_distance = partial(__overlap_helper_function, overlap_function=calculate_hellinger_distance)
+
+    
+# def farctional_geometric_area(arr_future:np.ndarray, arr_base:np.ndarray, return_all=False,
+#                              kde_kwargs=None, bmax=None, bmin=None)->float:
+#     """
+#     Calculate the fractional geometric area between the KDEs of two arrays.
+    
+#     Parameters:
+#     arr_future (numpy.ndarray): First input array of values.
+#     arr_base (numpy.ndarray): Second input array of values.
+#     return_all (bool): If False (default) just return the overlap percent. If True
+#                         return the kdes
+#     Returns:
+#     float: Fractional geometric overlap area as a percentage. Returns NaN if any array is fully NaN.
+#     """
+
+#     if not kde_kwargs: kde_kwargs = {}
+        
+#     # Check if any input array is fully NaN
+#     if np.all(np.isnan(arr_future)) or np.all(np.isnan(arr_base)): return np.nan
+    
+#     # Find the maximum and minimum values from the combined arrays
+#     if bmax is None: bmax = np.nanmax(np.concatenate([arr_base, arr_future]))# * 1.4
+#     if bmin is None: bmin = np.nanmin(np.concatenate([arr_base, arr_future]))
+#     x = create_x(bmin=bmin, bmax=bmax)
+
+#     _, kde_base = create_kde(arr_base, x, **kde_kwargs)
+#     _, kde_future = create_kde(arr_future, x, **kde_kwargs)
+    
+#     overlap_percent = caculate_distribution_overlap(kde_base, kde_future, x)
+
+#     if return_all: 
+#         return x, kde_base, kde_future, overlap_percent
+    
+    # return overlap_perce dnt
+    # val_range = bmax-bmin
+    # bmax = bmax+val_range/3
+    # bmin = bmin-val_range/3
     # bmin = bmin * 1.4 if bmin < 0 else bmin*0.6
     
     # Generate a linear space between the minimum and maximum values
-    x = np.linspace(bmin, bmax, 1000)
+    # x = np.linspace(bmin, bmax, 1000)
     
     # Remove NaN and infinite values from the arrays
-    base_arr = base_arr[np.isfinite(base_arr)]
-    arr_best = arr_best[np.isfinite(arr_best)]
+    # base_arr = base_arr[np.isfinite(base_arr)]
+    # arr_best = arr_best[np.isfinite(arr_best)]
     
-    # Compute the KDE for each array
-    kde1 = gaussian_kde(base_arr, **kde_kwargs)
-    kde2 = gaussian_kde(arr_best, **kde_kwargs)
-    kde_vals1 = kde1(x)
-    kde_vals2 = kde2(x)
+    # # Compute the KDE for each array
+    # kde1 = gaussian_kde(base_arr, **kde_kwargs)
+    # kde2 = gaussian_kde(arr_best, **kde_kwargs)
+    # kde_vals1 = kde1(x)
+    # kde_vals2 = kde2(x)
 
-    # Normalize the KDEs to ensure they integrate to 1 (i.e., are proper probability densities)
-    kde_vals1 /= np.trapz(kde_vals1, x)
-    kde_vals2 /= np.trapz(kde_vals2, x)
-    
-    overlap_percent = caculate_distribution_overlap(kde_vals1, kde_vals2, x)
-
-    if return_all: 
-        return x, kde_vals1, kde_vals2, overlap_percent
-    
-    return overlap_percent
+    # # Normalize the KDEs to ensure they integrate to 1 (i.e., are proper probability densities)
+    # kde_vals1 /= np.trapz(kde_vals1, x)
+    # kde_vals2 /= np.trapz(kde_vals2, x)
 
 
 def discrete_pdf(arr, bins:np.ndarray=None, num_bins:int=25) -> np.ndarray:
