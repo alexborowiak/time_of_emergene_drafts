@@ -5,10 +5,14 @@ This file contains functions to open and process GPCC precipitation and BEST tem
 """
 
 
-import os
+import os, sys
 
 import numpy as np
 import xarray as xr
+
+sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
+
+import paths
 
 def open_gpcc(resample=False):
     """
@@ -63,3 +67,66 @@ def open_best():
     # Compute and return the processed dataset
     best_ds = best_ds.compute()
     return best_ds
+
+
+
+def open_era5(var: str, return_raw:bool=False, save:bool=False) -> xr.DataArray:
+    """
+    Opens the ERA5 dataset for the specified variable. It checks if the variable 
+    has already been converted to Zarr format. If not, it attempts to load the 
+    raw data from NetCDF files, performs resampling to yearly averages, and returns 
+    the processed data.
+
+    Args:
+        var (str): The name of the ERA5 variable to load (e.g., 't2m', 'cape').
+        return_raw (bool): Return the raw data (don't resample and rename)
+        save (bool): If I want the dataset save to zarr or not in local era5 directory
+
+    Returns:
+        xr.DataArray: The processed ERA5 data for the specified variable, resampled to yearly averages.
+
+    Example:
+    data_ds = open_data.open_era5('cape', save=True)
+    # This will return 'cape'
+    
+    # This can now be run as
+    data_ds = open_data.open_era5('cape', save=True)
+    
+    # If erorrs occur, this can be used to get the raw data
+    data_ds = open_data.open_era5('cape', return_raw=True)
+    """
+    MY_ERA5_PATH = os.path.join(paths.DATA_DIR, 'era5')
+    
+    # List the variables that have already been converted to Zarr format
+    ERA5_SAVE_VARIABLES = list(map(lambda x: x.split('.')[0], os.listdir(MY_ERA5_PATH)))
+
+    # If the variable is already available as a Zarr file, load and return it
+    # If I want raw, then don't do this
+    if var in ERA5_SAVE_VARIABLES and not return_raw:
+        print(' - Variable already converted to zarr')
+        data_ds = xr.open_zarr(os.path.join(MY_ERA5_PATH, f'{var}.zarr'))
+        save=False # If variable already save- orverride save
+        
+    else: 
+        print(f'New Variables - attempting to open {var} from {paths.ERA5_PATH}')
+        
+        data_raw_ds = xr.open_mfdataset(
+            os.path.join(paths.ERA5_PATH, var, '*', '*.nc'), 
+            chunks={'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
+        )
+        if return_raw:
+            print('Returning raw data')
+            return data_raw_ds
+        print(' - Resample to yearly mean')
+        data_ds = data_raw_ds.resample(time='YE').mean()
+
+    if 'latitude' in list(data_ds.coords):
+        print('Renaming latitutde - lat and longitude - lon')
+        data_ds = data_ds.rename({'latitude': 'lat', 'longitude': 'lon'})
+
+    if save:
+        SAVE_NAME = os.path.join(MY_ERA5_PATH, f'{var}.zarr')
+        print(f' - Saving - {SAVE_NAME=}')
+        data_ds.to_zarr(SAVE_NAME, mode='w')
+
+    return data_ds[var]
