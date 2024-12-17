@@ -250,7 +250,10 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
         return np.nan
 
     # Find indices where values exceed threshold
-    greater_than_arg_list = comparison_func(arr, threshold)
+    if comparison_func is not None: # Can be none if values are already bool
+        greater_than_arg_list = comparison_func(arr, threshold)
+    else:
+        greater_than_arg_list = arr
 
     # If no value exceeds threshold, return nan
     if np.all(greater_than_arg_list == False):
@@ -264,6 +267,7 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
         return np.nan
 
     # The argument will be the sum of all the other group lengths up to the last group
+    # As the -1 group is being used, this will be when permanent emergence occurs
     first_exceedance_arg = int(np.sum(list(map(lambda x: x[1], groups))[:-1]))
 
     # Get the time corresponding to the first exceedance
@@ -307,12 +311,14 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
     )
 
     # Apply the partial function to compute the permanent exceedance
-    return xr.apply_ufunc(
+    to_retrun = xr.apply_ufunc(
         partial_exceedance_func, 
         ds, 
         **exceedance_dict
     )
 
+    return to_retrun
+    
 def create_exceedance_single_point_dict(toe_ds, timeseries_ds):
     """
     Creates a dictionary with year, corresponding datetime, and value from two datasets.

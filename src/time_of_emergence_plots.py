@@ -20,6 +20,8 @@ TEST_PLOT_DICT = {
     'sn_poly4': {'color': 'blue', 'marker': 'o'},
     'sn_rolling': {'color': 'purple', 'marker': 'o'},
     'sn_anom': {'color': 'darkorchid', 'marker': 'o'},
+    'nn': {'color': 'yellow', 'marker': 'o'},
+
 
     'sn_lowess_rolling': {'color': 'darkgreen', 'marker': 'o'},
     'sn_lowess_rolling_smooth': {'color': 'green', 'marker': 'o'},
