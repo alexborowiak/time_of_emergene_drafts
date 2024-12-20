@@ -2,7 +2,17 @@ from enum import Enum
 from typing import NamedTuple
 
 
+class YearRange(Enum):
+    MODERN_PERIOD = (1959, 1989)
+    MID_CENTURY = (1900, 1930)
 
+    @property
+    def start(self):
+        return self.value[0]
+
+    @property
+    def end(self):
+        return self.value[1]
 
 
 # The threshold of emergence for the different tests
