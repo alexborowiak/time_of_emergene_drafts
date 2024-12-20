@@ -6,12 +6,10 @@ This file contains functions to open and process GPCC precipitation and BEST tem
 
 
 import os, sys
-
 import numpy as np
 import xarray as xr
 
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
-
 import paths
 
 def open_gpcc(resample=False):
@@ -37,6 +35,9 @@ def open_gpcc(resample=False):
         gcpp_ds = gcpp_raw_ds
     # Lats are wrong way around for some reason
     gcpp_ds = gcpp_ds.sortby('lat')
+    
+    gcpp_ds.attrs['dataset_name'] = 'gpcc'
+    
     return gcpp_ds
 
 
@@ -66,6 +67,8 @@ def open_best():
     best_ds = best_ds.resample(time='Y').mean()
     # Compute and return the processed dataset
     best_ds = best_ds.compute()
+    best_ds.attrs['dataset_name'] = 'best'
+
     return best_ds
 
 
@@ -120,13 +123,55 @@ def open_era5(var: str, return_raw:bool=False, save:bool=False) -> xr.DataArray:
         print(' - Resample to yearly mean')
         data_ds = data_raw_ds.resample(time='YE').mean()
 
+    
     if 'latitude' in list(data_ds.coords):
         print('Renaming latitutde - lat and longitude - lon')
         data_ds = data_ds.rename({'latitude': 'lat', 'longitude': 'lon'})
+
+    data_ds = data_ds[var]
+    data_ds.attrs['dataset_name'] = 'era5'
 
     if save:
         SAVE_NAME = os.path.join(MY_ERA5_PATH, f'{var}.zarr')
         print(f' - Saving - {SAVE_NAME=}')
         data_ds.to_zarr(SAVE_NAME, mode='w')
 
-    return data_ds[var]
+    return data_ds
+
+
+
+def open_access_precip():
+    OPEN_KWARGS = dict(use_cftime=True, drop_variables=['lat_bnds', 'time_bnds', 'lon_bnds'],
+                  chunks={'time':-1, 'lat':50})
+    
+    hist_ds = xr.open_dataset(
+        '/g/data/fs38/publications/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r10i1p1f1/Amon/pr/gn/latest/'
+        'pr_Amon_ACCESS-ESM1-5_historical_r10i1p1f1_gn_185001-201412.nc',
+                         **OPEN_KWARGS)
+
+    ssp585_p1_ds = xr.open_dataset('/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
+                                   'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_201501-210012.nc',
+                              **OPEN_KWARGS)
+    
+    ssp585_p2_ds = xr.open_dataset('/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
+                                   'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_210101-230012.nc',
+                                  **OPEN_KWARGS)
+    
+    data_raw_ds = xr.concat([hist_ds['pr'], ssp585_p1_ds['pr'], ssp585_p2_ds['pr']], dim='time')
+    
+    data_ds = data_raw_ds*86400
+    
+    # data_ds = data_ds.resample(time='QS-DEC').sum().compute()
+    # data_ds = data_ds.where(data_ds.time.dt.month == 12, drop=True)
+    
+    # There are negative values for some reason. For now just remove them and move on.
+    data_ds = data_ds.where(data_ds >=0, data_ds, 0)
+    
+    # The last year isn't correct. The sum QS-DEC bug this. Just removing both though
+    data_ds = data_ds.sel(time=data_ds.time.dt.year< 2299)
+
+    
+    data_ds.attrs['dataset_name'] = 'access'
+
+
+    return data_ds
