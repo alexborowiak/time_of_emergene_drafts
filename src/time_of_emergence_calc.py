@@ -216,7 +216,7 @@ def return_hawkins_signal_and_noise(lt: ArrayLike, gt: ArrayLike, return_reconst
 
 
 
-def calculate_freedman_diaconis_bins(arr=None, length=None):
+def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"):
     """
     Calculate bin edges using the Freedman-Diaconis rule for a 1D NumPy array.
     https://en.wikipedia.org/wiki/Freedman%E2%80%93Diaconis_rule
@@ -228,18 +228,25 @@ def calculate_freedman_diaconis_bins(arr=None, length=None):
     - bin_edges: numpy.ndarray
         The bin edges calculated using the Freedman-Diaconis rule.
     """
+    utils.change_logginglevel(logginglevel)
     # Remove NaNs
     arr = arr[~np.isnan(arr)]
+        
 
     # If passing in girdded data
     if length is None: length = len(arr)
     
     # Calculate bin width using the Freedman-Diaconis rule
-    iqr = np.percentile(arr, 75) - np.percentile(arr, 25)
+    p75 = np.percentile(arr, 75)
+    p25 = np.percentile(arr, 25)
+    iqr =  p75 - p25
+    print(f'{p75=}, {p25=}, {iqr=}, {length=}')
+    
     bin_width = 2 * iqr / length ** (1 / 3)
+    logger.info(bin_width)
 
     # Define bin edges
-    bin_edges = np.arange(arr.min(), arr.max() + bin_width, bin_width)
+    bin_edges = np.arange(np.nanmin(arr), np.nanmax(arr) + bin_width, bin_width)
 
     return bin_edges
     

@@ -13,6 +13,9 @@ class YearRange(Enum):
     @property
     def end(self):
         return self.value[1]
+    @property
+    def length(self):
+        return self.end - self.start
 
 
 # The threshold of emergence for the different tests

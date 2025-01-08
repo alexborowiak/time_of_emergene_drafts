@@ -26,8 +26,8 @@ def open_gpcc(resample=False):
 
     if resample:
         # Resample to yearly sum
-        print('  -- resampling to yearly sum')
-        gcpp_ds = gcpp_raw_ds.resample(time='Y').sum().compute()
+        print(f'  -- resampling to {resample} sum')
+        gcpp_ds = gcpp_raw_ds.resample(time=resample).sum().compute()
         # Mask out non-finite values
         print('  -- masking out non-finite values')
         gcpp_ds = gcpp_ds.where(np.isfinite(gcpp_raw_ds.isel(time=0).drop('time')))
@@ -140,28 +140,28 @@ def open_era5(var: str, return_raw:bool=False, save:bool=False) -> xr.DataArray:
 
 
 
-def open_access_precip():
+def open_access_precip(resample:str='QS-DEC'):
     OPEN_KWARGS = dict(use_cftime=True, drop_variables=['lat_bnds', 'time_bnds', 'lon_bnds'],
                   chunks={'time':-1, 'lat':50})
     
     hist_ds = xr.open_dataset(
         '/g/data/fs38/publications/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r10i1p1f1/Amon/pr/gn/latest/'
-        'pr_Amon_ACCESS-ESM1-5_historical_r10i1p1f1_gn_185001-201412.nc',
-                         **OPEN_KWARGS)
+        'pr_Amon_ACCESS-ESM1-5_historical_r10i1p1f1_gn_185001-201412.nc', **OPEN_KWARGS)
 
-    ssp585_p1_ds = xr.open_dataset('/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
-                                   'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_201501-210012.nc',
-                              **OPEN_KWARGS)
+    ssp585_p1_ds = xr.open_dataset(
+        '/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
+        'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_201501-210012.nc', **OPEN_KWARGS)
     
-    ssp585_p2_ds = xr.open_dataset('/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
-                                   'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_210101-230012.nc',
-                                  **OPEN_KWARGS)
+    ssp585_p2_ds = xr.open_dataset(
+        '/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/''Amon/pr/gn/latest/'
+        'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_210101-230012.nc', **OPEN_KWARGS)
     
     data_raw_ds = xr.concat([hist_ds['pr'], ssp585_p1_ds['pr'], ssp585_p2_ds['pr']], dim='time')
-    
+
+    # m/s -> mm/day
     data_ds = data_raw_ds*86400
     
-    # data_ds = data_ds.resample(time='QS-DEC').sum().compute()
+    data_ds = data_ds.resample(time=resample).sum().compute()
     # data_ds = data_ds.where(data_ds.time.dt.month == 12, drop=True)
     
     # There are negative values for some reason. For now just remove them and move on.
@@ -169,6 +169,8 @@ def open_access_precip():
     
     # The last year isn't correct. The sum QS-DEC bug this. Just removing both though
     data_ds = data_ds.sel(time=data_ds.time.dt.year< 2299)
+
+    # gcpp_ds = gcpp_raw_ds.resample(time=resample).sum().compute()
 
     
     data_ds.attrs['dataset_name'] = 'access'
