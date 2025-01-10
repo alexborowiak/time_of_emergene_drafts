@@ -250,7 +250,7 @@ def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"
 
     return bin_edges
     
-def get_rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
+def rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
     """
     Calculate the relative frequencies of values in the array within the specified bins.
     
@@ -270,6 +270,9 @@ def get_rel_freq(arr:np.ndarray, bins:np.ndarray)->np.ndarray:
     # Calculate the relative frequencies
     rel_freq = counts / len(arr)
     return rel_freq
+
+
+get_rel_freq = rel_freq
 
 def discrete_pdf(arr, bins:np.ndarray=None, num_bins:int=None) -> np.ndarray:
     """
@@ -313,15 +316,13 @@ def discrete_distribution_overlap(rel_freq_base, rel_freq_arr):
     return freq_min_sum_percent
 
 
-def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=None,
-                       num_bins:int=25)->float:
+def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=None)->float:
     """
     Calculate the Perkins Skill Score (PSS) between two arrays.
     
     Parameters:
     arr_best (numpy.ndarray): First input array of values.
     base_arr (numpy.ndarray): Second input array of values.
-    num_bins (int): The number of bins
     
     Returns:
     float: Perkins Skill Score as a percentage. Returns NaN if any array is fully NaN.
@@ -335,15 +336,13 @@ def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=Non
             np.concatenate(np.concatenate([base_arr, arr]), length=len(base_arr))
         )
     
-
-    
     # Calculate the relative frequencies for each array
     rel_freq_base = get_rel_freq(base_arr, bins)
     rel_freq_arr = get_rel_freq(arr, bins)
     
-    freq_min_sum_percent = discrete_distribution_overlap(rel_freq_base, rel_freq_arr)
+    overlap = discrete_distribution_overlap(rel_freq_base, rel_freq_arr)
     
-    return float(freq_min_sum_percent)
+    return float(overlap)
 
 
 

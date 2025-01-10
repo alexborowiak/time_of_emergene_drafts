@@ -12,6 +12,42 @@ import xarray as xr
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
 import paths
 
+import utils
+logger = utils.get_notebook_logger()
+
+ERA5_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
+
+
+def rechunk_lat_lon(dataset: xr.Dataset, lat_chunk_size: int, lon_chunk_size: int) -> xr.Dataset:
+    """
+    Rechunk the dataset to divide the 'lat' and 'lon' dimensions into specified sizes
+    while keeping 'time' as a single chunk.
+
+    Args:
+        dataset (xr.Dataset): The input dataset to rechunk.
+        lat_chunk_size (int): Desired chunk size for the 'lat' dimension.
+        lon_chunk_size (int): Desired chunk size for the 'lon' dimension.
+
+    Returns:
+        xr.Dataset: The rechunked dataset.
+    """
+    # Calculate the total sizes of 'lat' and 'lon'
+    lat_size = dataset.sizes['lat']
+    lon_size = dataset.sizes['lon']
+
+    # Ensure the chunk sizes don't exceed the total size of the dimension
+    lat_chunk_size = min(lat_chunk_size, lat_size)
+    lon_chunk_size = min(lon_chunk_size, lon_size)
+
+    # Rechunk the dataset
+    rechunked_dataset = dataset.chunk({
+        'time': -1,  # Keep 'time' as a single chunk
+        'lat': lat_chunk_size,
+        'lon': lon_chunk_size
+    })
+    
+    return rechunked_dataset
+
 def open_gpcc(resample=False):
     """
     Open and process GPCC precipitation dataset.
@@ -73,70 +109,85 @@ def open_best():
 
 
 
-def open_era5(var: str, return_raw:bool=False, save:bool=False) -> xr.DataArray:
+def open_era5(
+    var: str,
+    return_raw: bool = False,
+    save: bool = False,
+    resample_method: str = "mean",
+    logginglevel='ERROR'
+) -> xr.DataArray:
     """
     Opens the ERA5 dataset for the specified variable. It checks if the variable 
     has already been converted to Zarr format. If not, it attempts to load the 
-    raw data from NetCDF files, performs resampling to yearly averages, and returns 
-    the processed data.
+    raw data from NetCDF files, performs resampling to yearly averages or other 
+    specified methods, and returns the processed data.
 
     Args:
         var (str): The name of the ERA5 variable to load (e.g., 't2m', 'cape').
-        return_raw (bool): Return the raw data (don't resample and rename)
-        save (bool): If I want the dataset save to zarr or not in local era5 directory
+        return_raw (bool): Return the raw data (don't resample and rename).
+        save (bool): If I want the dataset saved to Zarr or not in the local ERA5 directory.
+        resample_method (str): Resampling method to apply ('mean', 'max', 'sum'). Defaults to 'mean'.
 
     Returns:
-        xr.DataArray: The processed ERA5 data for the specified variable, resampled to yearly averages.
+        xr.DataArray: The processed ERA5 data for the specified variable, resampled as specified.
 
     Example:
-    data_ds = open_data.open_era5('cape', save=True)
-    # This will return 'cape'
-    
-    # This can now be run as
-    data_ds = open_data.open_era5('cape', save=True)
-    
-    # If erorrs occur, this can be used to get the raw data
-    data_ds = open_data.open_era5('cape', return_raw=True)
+        data_ds = open_era5('cape', save=True, resample_method='max')
     """
+    utils.change_logginglevel(logginglevel)
+    chunks = ERA5_CHUNKS
+    
     MY_ERA5_PATH = os.path.join(paths.DATA_DIR, 'era5')
     
     # List the variables that have already been converted to Zarr format
     ERA5_SAVE_VARIABLES = list(map(lambda x: x.split('.')[0], os.listdir(MY_ERA5_PATH)))
 
     # If the variable is already available as a Zarr file, load and return it
-    # If I want raw, then don't do this
     if var in ERA5_SAVE_VARIABLES and not return_raw:
-        print(' - Variable already converted to zarr')
+        logger.info(' - Variable already converted to zarr')
         data_ds = xr.open_zarr(os.path.join(MY_ERA5_PATH, f'{var}.zarr'))
-        save=False # If variable already save- orverride save
+        save = False  # If variable already saved, override save
         
     else: 
-        print(f'New Variables - attempting to open {var} from {paths.ERA5_PATH}')
-        
-        data_raw_ds = xr.open_mfdataset(
-            os.path.join(paths.ERA5_PATH, var, '*', '*.nc'), 
-            chunks={'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
-        )
-        if return_raw:
-            print('Returning raw data')
-            return data_raw_ds
-        print(' - Resample to yearly mean')
-        data_ds = data_raw_ds.resample(time='YE').mean()
+        logger.info(f'New Variable - attempting to open {var} from {paths.ERA5_PATH}')
 
-    
+        full_path = os.path.join(paths.ERA5_PATH, var, '*', '*.nc')
+        
+        logger.debug(f'{full_path=}')
+        
+        data_raw_ds = xr.open_mfdataset(full_path, chunks=chunks)
+        if return_raw:
+            logger.info('Returning raw data')
+            return data_raw_ds
+
+        logger.debug(f' - Resampling to yearly {resample_method}')
+        if resample_method == "mean":
+            data_ds = data_raw_ds.resample(time='YE').mean()
+        elif resample_method == "max":
+            data_ds = data_raw_ds.resample(time='YE').max()
+        elif resample_method == "sum":
+            data_ds = data_raw_ds.resample(time='YE').sum()
+        else:
+            raise ValueError(f"Unsupported resampling method: {resample_method}")
+
     if 'latitude' in list(data_ds.coords):
-        print('Renaming latitutde - lat and longitude - lon')
+        logger.info('Renaming latitude - lat and longitude - lon')
         data_ds = data_ds.rename({'latitude': 'lat', 'longitude': 'lon'})
 
     data_ds = data_ds[var]
     data_ds.attrs['dataset_name'] = 'era5'
+    data_ds.attrs['resample_method'] = resample_method
+
 
     if save:
         SAVE_NAME = os.path.join(MY_ERA5_PATH, f'{var}.zarr')
-        print(f' - Saving - {SAVE_NAME=}')
+        logger.info(f' - Saving - {SAVE_NAME=}')
         data_ds.to_zarr(SAVE_NAME, mode='w')
 
+    data_ds = data_ds.chunk(chunks)
+
     return data_ds
+
 
 
 

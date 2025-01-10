@@ -40,6 +40,8 @@ EMERGENCE_THRESHOLD_DICT = {
 
 NAME_CONVERSION_DICT = {
     'sn': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
+    'sn_lowess_base': 'S/N Ratio (LOWESS, Base Noise)',
+    'sn_lowess_full': 'S/N Ratio (LOWESS, Full Series Noise)',
     'sn_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
     'sn_lowess_rolling': 'S/N Ratio (LOWESS, Rolling)',#'Signal-to-Noise Ratio'
     'sn_rolling': 'S/N Ratio (Rolling Mean)',#'Signal-to-Noise Ratio'
@@ -47,13 +49,20 @@ NAME_CONVERSION_DICT = {
     'sn_poly4': 'S/N Ratio (4th Order Polynomial)',#'Signal-to-Noise Ratio'
     'sn_lowess_rolling_smooth': 'S/N Ratio (LOWESS, Rolling, smooth)',#'Signal-to-Noise Ratio'
     'nn': 'New Normal',
-    'ks': 'KS', #Kolmogorov-Smirnov
+    'ks': 'Kolmogorov-Smirnov',
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',
     'perkins': 'Perkins Skill Score', 
     'frac': 'Fractional Geometric Area',
     'hd': 'Hellinger Distance'    
 }
+
+VARIABLE_CONVERSION_DICT = {
+    'best_temperature': 'BEST Temp',
+    'era5_t2m': 'ERA5 2m Temp',
+    'access_pr': 'ACCESS Precip (SSP5-8.5)'
+}
+
 
 NAME_CONVERSION_DICT_SHORT = {
     'sn': 'S/N (LOWESS)',#'Signal-to-Noise Ratio'
