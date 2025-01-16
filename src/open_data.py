@@ -16,7 +16,19 @@ import utils
 logger = utils.get_notebook_logger()
 
 ERA5_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
+ERA5_SMALL_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 24}
 
+# ERA5_SMALL_CHUNKS = {'time':-1, 'lat': 361//19, 'lon':720//12} # lon o.g. 24
+
+CHUNKS = {
+    "access": {
+        'small': {'time':-1, 'lat':145//5, 'lon':192//32},
+        'regular': {'time':-1, 'lat':145//5, 'lon':192//8}
+    }
+}
+
+best_chunks_raw = {'time':-1, 'latitude': 90, 'longitude': 120}
+best_chunks = {'time':-1, 'lat': 90, 'lon': 120}
 
 def rechunk_lat_lon(dataset: xr.Dataset, lat_chunk_size: int, lon_chunk_size: int) -> xr.Dataset:
     """
@@ -85,12 +97,14 @@ def open_best():
         xarray.Dataset: Processed BEST dataset with yearly mean temperature.
     """
     # Define file path
+
+
     ROOT_DIR = '/g/data/w40/ab2313/time_of_emergence'
 
     fname = os.path.join(ROOT_DIR, 'best', 'Land_and_Ocean_LatLong1_time_chunk.zarr')
     print(f'Opening best dataset from - {fname}')
     # Open dataset with chunking and cftime support
-    best_ds_raw = xr.open_dataset(fname, chunks={'time':-1, 'latitude': 90, 'longitude': 120}, use_cftime=True)
+    best_ds_raw = xr.open_dataset(fname, chunks=best_chunks_raw, use_cftime=True)
     
     # Override time dimension with cftime range
     print('  -- overriding time to use cftime')
@@ -102,7 +116,7 @@ def open_best():
     print('  -- resampling to yearly mean')
     best_ds = best_ds.resample(time='Y').mean()
     # Compute and return the processed dataset
-    best_ds = best_ds.compute()
+    best_ds = best_ds.compute().chunk(best_chunks)
     best_ds.attrs['dataset_name'] = 'best'
 
     return best_ds
@@ -114,7 +128,8 @@ def open_era5(
     return_raw: bool = False,
     save: bool = False,
     resample_method: str = "mean",
-    logginglevel='ERROR'
+    logginglevel='ERROR',
+    chunks=None
 ) -> xr.DataArray:
     """
     Opens the ERA5 dataset for the specified variable. It checks if the variable 
@@ -135,7 +150,7 @@ def open_era5(
         data_ds = open_era5('cape', save=True, resample_method='max')
     """
     utils.change_logginglevel(logginglevel)
-    chunks = ERA5_CHUNKS
+    if not chunks: chunks = ERA5_CHUNKS
     
     MY_ERA5_PATH = os.path.join(paths.DATA_DIR, 'era5')
     
@@ -190,41 +205,128 @@ def open_era5(
 
 
 
+def open_era5_reanalysis(var:str , method:str) -> xr.Dataset:
+    '''
+    Args:
+        var: the variable to be downloaded
+        method: Obvilsy don't want hourly data. The method to convert to annual
+    
+    Some variables may need to be opened in a custom way
 
-def open_access_precip(resample:str='QS-DEC'):
+    I am not expecting this to be universal for all variables. May need to be manually updates for each
+    variables at locations marked with # !!!!!!!!!!!!!!!
+    '''
+    
+    from glob import glob
+    path = f'/g/data/rt52/era5/single-levels/reanalysis/{var}/*/*.nc'
+    files_to_open = glob(path, recursive=True)
+    print(len(files_to_open))
+
+    # Remove files later than this start year (errors before this and unaligned with other
+    # ERA5 data)
+    files_to_open = [f for f in files_to_open if int(f.split('/')[-2]) > 1958]
+    len(files_to_open)
+    
+    data_ds = xr.open_mfdataset(
+        files_to_open, #path,
+        combine="by_coords",
+        # parallel=True,
+        # lock=False,  # Disable file locking (good for reach only)
+        chunks=open_data.ERA5_CHUNKS, 
+        use_cftime=True,
+    )[var]
+
+    # !!!!!!!!!!!!!!!
+    data_ds_resample = getattr(data_ds.resample(time='YE'), method)
+    
+    data_ds_resample = data_ds_resample.rename({'latitude': 'lat', 'longitude': 'lon'})
+    data_ds_resample = data_ds_resample.compute()
+    # data_ds_resample = data_ds_resample.chunk(open_data.ERA5_CHUNKS)
+    data_ds_resample = data_ds_resample.chunk({'time':-1, 'lat': 361//19, 'lon':720//24})
+
+
+    MY_ERA5_PATH = os.path.join(paths.DATA_DIR, 'era5')
+    SAVE_NAME = os.path.join(MY_ERA5_PATH, f'{var}.zarr')
+    data_ds_resample.to_zarr(SAVE_NAME, mode='w')
+
+    return data_ds_resample
+
+
+
+def open_access(variable='pr', ensemble='r10i1p1f1', scenario='ssp585', resample:str='QS-DEC'):
     OPEN_KWARGS = dict(use_cftime=True, drop_variables=['lat_bnds', 'time_bnds', 'lon_bnds'],
                   chunks={'time':-1, 'lat':50})
     
     hist_ds = xr.open_dataset(
-        '/g/data/fs38/publications/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r10i1p1f1/Amon/pr/gn/latest/'
-        'pr_Amon_ACCESS-ESM1-5_historical_r10i1p1f1_gn_185001-201412.nc', **OPEN_KWARGS)
+        f'/g/data/fs38/publications/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r10i1p1f1/Amon/{variable}/gn/latest/'
+        f'{variable}_Amon_ACCESS-ESM1-5_historical_{ensemble}_gn_185001-201412.nc', **OPEN_KWARGS)
 
-    ssp585_p1_ds = xr.open_dataset(
-        '/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/Amon/pr/gn/latest/'
-        'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_201501-210012.nc', **OPEN_KWARGS)
+    ssp_p1_ds = xr.open_dataset(
+        f'/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/{scenario}/{ensemble}/Amon/{variable}/gn/latest/'
+        f'{variable}_Amon_ACCESS-ESM1-5_{scenario}_{ensemble}_gn_201501-210012.nc', **OPEN_KWARGS)
     
-    ssp585_p2_ds = xr.open_dataset(
-        '/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp585/r10i1p1f1/''Amon/pr/gn/latest/'
-        'pr_Amon_ACCESS-ESM1-5_ssp585_r10i1p1f1_gn_210101-230012.nc', **OPEN_KWARGS)
+    ssp_p2_ds = xr.open_dataset(
+        f'/g/data/fs38/publications/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/{scenario}/{ensemble}/Amon/{variable}/gn/latest/'
+        f'{variable}_Amon_ACCESS-ESM1-5_{scenario}_{ensemble}_gn_210101-230012.nc', **OPEN_KWARGS)
     
-    data_raw_ds = xr.concat([hist_ds['pr'], ssp585_p1_ds['pr'], ssp585_p2_ds['pr']], dim='time')
+    data_raw_ds = xr.concat([hist_ds[variable], ssp_p1_ds[variable], ssp_p2_ds[variable]], dim='time')
 
-    # m/s -> mm/day
-    data_ds = data_raw_ds*86400
+
+    # Define resampling operations for each variable
+    aggregation_operations = {
+        'tas': 'mean',
+        'tasmax': 'max',
+        'tasmin': 'min',
+    }
     
-    data_ds = data_ds.resample(time=resample).sum().compute()
-    # data_ds = data_ds.where(data_ds.time.dt.month == 12, drop=True)
-    
-    # There are negative values for some reason. For now just remove them and move on.
-    data_ds = data_ds.where(data_ds >=0, data_ds, 0)
-    
+    if variable == 'pr':
+        # Special handling for precipitation
+        data_ds = data_raw_ds * 86400  # Convert m/s to mm/day
+        data_ds = data_ds.resample(time=resample).sum().compute()
+        # Remove negative values (set to 0)
+        data_ds = data_ds.where(data_ds >= 0, 0)
+    elif variable in aggregation_operations:
+        # Use dynamic method selection for other variables
+        agg_func = aggregation_operations[variable]
+        print(f'{agg_func=}')
+        data_ds = getattr(data_raw_ds.resample(time=resample), agg_func)()
+    else:
+        raise ValueError(f"Unsupported variable: {variable}")
+
     # The last year isn't correct. The sum QS-DEC bug this. Just removing both though
     data_ds = data_ds.sel(time=data_ds.time.dt.year< 2299)
 
-    # gcpp_ds = gcpp_raw_ds.resample(time=resample).sum().compute()
-
-    
-    data_ds.attrs['dataset_name'] = 'access'
-
+    data_ds.attrs['dataset_name'] = f'access_{scenario}_{ensemble}'
+    data_ds.attrs['resample'] = resample
 
     return data_ds
+
+
+def chunk_lat_lon(ds, num_chunks, lat_name='lat', lon_name='lon'):
+    """
+    Calculate chunk sizes for a dataset to divide lat and lon into approximately `num_chunks` total chunks,
+    while keeping the 'time' dimension unchunked.
+
+    Args:
+        ds (xr.Dataset): The input dataset.
+        num_chunks (int): The desired total number of chunks for lat and lon combined.
+        lat_name (str): The name of the latitude dimension in the dataset. Default is 'lat'.
+        lon_name (str): The name of the longitude dimension in the dataset. Default is 'lon'.
+
+    Returns:
+        dict: A dictionary of chunk sizes for 'time', 'lat', and 'lon'.
+    """
+    # Calculate the square root of the total number of chunks
+    num_chunks_sqrt = int(np.sqrt(num_chunks))
+
+    # Get the sizes of the latitude and longitude dimensions
+    dim_sizes = ds.sizes
+
+    # Calculate chunk sizes for latitude and longitude
+    lat_chunk_size = dim_sizes[lat_name] // num_chunks_sqrt
+    lon_chunk_size = dim_sizes[lon_name] // num_chunks_sqrt
+
+    # Define chunk sizes for the dataset
+    chunks = {'time': -1, lat_name: lat_chunk_size, lon_name: lon_chunk_size}
+    
+    return chunks

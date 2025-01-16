@@ -129,9 +129,9 @@ def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_ye
     if np.isnan(year_of_emergence) or np.all(np.isnan(arr)): return arr
 
     # The integer arguement of where the time_years equals the emergence arg
-    # print(year_of_emergence)
+    year_of_emergence = int(year_of_emergence)
+
     emergence_arg = np.argwhere(time_years == np.round(year_of_emergence))    
-    #print(year_of_emergence, emergence_arg)   
     emergence_arg = emergence_arg.item()
 
     to_return = np.zeros_like(arr)

@@ -346,20 +346,27 @@ def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=Non
 
 
 
-        # Find the maximum and minimum values from the combined arrays
-        # bmax = np.nanmax(np.concatenate([base_arr, arr]))
-        # bmin = np.nanmin(np.concatenate([base_arr, arr]))
-        
-        # Define the bin width and create bin edges
-        # bins = np.linspace(bmin, bmax, num_bins)
+def perkins_skill_score_base_bins(arr:np.ndarray, rel_freq_base:np.ndarray, bins:np.ndarray=None)->float:
+    """
+    Calculate the Perkins Skill Score (PSS) between two arrays.
+    
+    Parameters:
+    arr_best (numpy.ndarray): First input array of values.
+    rel_freq_base (numpy.ndarray): relative frequency of base period.
+    
+    Returns:
+    float: Perkins Skill Score as a percentage. Returns NaN if any array is fully NaN.
+    """
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr)) or np.all(np.isnan(rel_freq_base)): return np.nan
 
 
-    #step = 0.5
-    #bins = np.arange(bmin, bmax + step, step)
-
-
-
-
+    # Calculate the relative frequencies for each array
+    rel_freq_arr = get_rel_freq(arr, bins)
+    
+    overlap = discrete_distribution_overlap(rel_freq_base, rel_freq_arr)
+    
+    return float(overlap)
 
 
 
@@ -390,7 +397,7 @@ def calculate_hellinger_distance(
 
     return hellinger_distance * 100
 
-def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None) -> np.ndarray:
+def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None, xlength=1000) -> np.ndarray:
     
     if bmin is None or bmax is None:
         bmin = np.nanmin(arr)
@@ -401,7 +408,7 @@ def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None) -> np.ndarra
     bmax = bmax+val_range/3
     bmin = bmin-val_range/3
     
-    x = np.linspace(bmin, bmax, 1000)
+    x = np.linspace(bmin, bmax, xlength)
     return x
 
 def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
@@ -418,6 +425,22 @@ def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=N
     kde_vals /= np.trapz(kde_vals, x)
 
     return x, kde_vals
+
+def create_kde(arr: np.ndarray, bmin:float=None, bmax:float=None, **kwargs):
+
+    # No x values provided - created own
+    if x is None: x = create_x(arr, bmin, bmax)
+        
+    # Remove NaN and infinite values from the arrays
+    arr = arr[np.isfinite(arr)]    
+    # Compute the KDE for each array
+    kde = gaussian_kde(arr, **kwargs)
+    kde_vals = kde(x)
+
+    kde_vals /= np.trapz(kde_vals, x)
+
+    return x, kde_vals
+
 
 
 def calculate_kde_overlap(dist1, dist2, x):
@@ -500,6 +523,36 @@ def farctional_geometric_area(*arg, **kwargs):
 
 
 
+def __overlap_helper_function_base_fitted(arr_future: np.ndarray, kde_base: np.ndarray, overlap_function, x) -> float:
+    """
+    Helper function to calculate the overlap between the KDEs of two arrays using a specified overlap function.
+
+    Parameters:
+    arr_future (numpy.ndarray): First input array of values.
+    arr_base (numpy.ndarray): Second input array of values.
+    return_all (bool): If False (default) just return the overlap percent. If True,
+                        return the KDEs and the overlap percent.
+    kde_kwargs (dict, optional): Keyword arguments to pass to the KDE creation function.
+    bmax (float, optional): Maximum value for the range of the KDE.
+    bmin (float, optional): Minimum value for the range of the KDE.
+    overlap_function (callable, optional): Function to calculate overlap between two distributions.
+                                           Should accept `kde_base`, `kde_future`, and `x` as arguments.
+
+    Returns:
+    float: Overlap area as calculated by the specified overlap function. Returns NaN if any array is fully NaN.
+    """
+
+    if not method_kwargs: method_kwargs = {}
+
+    # Check if any input array is fully NaN
+    if np.all(np.isnan(arr_future)) or np.all(np.isnan(arr_base)): return np.nan
+
+
+    _, kde_future = create_kde(arr_future, x, **method_kwargs)
+
+    out_metric = overlap_function(kde_base, kde_future, x)
+
+    return out_metric
 
     
     

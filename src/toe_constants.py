@@ -4,7 +4,10 @@ from typing import NamedTuple
 
 class YearRange(Enum):
     MODERN_PERIOD = (1959, 1989)
-    MID_CENTURY = (1900, 1930)
+    MID_20TH_CENTURY = (1929, 1959)
+    EARLY_20TH_CENTURY = (1899, 1929)
+
+    ERA5_START = (1940, 1970)
 
     @property
     def start(self):
@@ -60,7 +63,10 @@ NAME_CONVERSION_DICT = {
 VARIABLE_CONVERSION_DICT = {
     'best_temperature': 'BEST Temp',
     'era5_t2m': 'ERA5 2m Temp',
-    'access_pr': 'ACCESS Precip (SSP5-8.5)'
+    'era5_cape': 'ERA5 CAPE',
+    'access_pr': 'ACCESS Precip (SSP5-8.5)',
+    'access_ssp585_r10i1p1f1_pr_QSDEC': 'ACCESS Precip\n(Boreal Winter, SSP5-8.5)',
+    'access_ssp585_r10i1p1f1_pr_QSJUN': 'ACCESS Precip\n(Austral Winter, SSP5-8.5)'
 }
 
 
