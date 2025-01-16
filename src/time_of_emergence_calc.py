@@ -397,7 +397,7 @@ def calculate_hellinger_distance(
 
     return hellinger_distance * 100
 
-def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None, xlength=1000) -> np.ndarray:
+def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None, num_points=1000) -> np.ndarray:
     
     if bmin is None or bmax is None:
         bmin = np.nanmin(arr)
@@ -408,7 +408,7 @@ def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None, xlength=1000
     bmax = bmax+val_range/3
     bmin = bmin-val_range/3
     
-    x = np.linspace(bmin, bmax, xlength)
+    x = np.linspace(bmin, bmax, num_points)
     return x
 
 def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
@@ -426,7 +426,7 @@ def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=N
 
     return x, kde_vals
 
-def create_kde(arr: np.ndarray, bmin:float=None, bmax:float=None, **kwargs):
+def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
 
     # No x values provided - created own
     if x is None: x = create_x(arr, bmin, bmax)
