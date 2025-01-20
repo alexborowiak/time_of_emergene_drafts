@@ -15,8 +15,13 @@ import paths
 import utils
 logger = utils.get_notebook_logger()
 
-ERA5_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
+# ERA5_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
 ERA5_SMALL_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 24}
+ERA5_CHUNKS_160 = {
+    'time': -1,
+    'lat': 721//7,
+    'lon':1440//24
+}
 
 # ERA5_SMALL_CHUNKS = {'time':-1, 'lat': 361//19, 'lon':720//12} # lon o.g. 24
 
