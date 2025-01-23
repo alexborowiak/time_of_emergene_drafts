@@ -603,15 +603,13 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
         greater_than_arg_list = arr
 
     # If no value exceeds threshold, return nan
-    if np.all(greater_than_arg_list == False):
-        return np.nan
+    if np.all(greater_than_arg_list == False): return np.nan
 
     # Group consecutive True and False values
     groups = [(key, len(list(group))) for key, group in groupby(greater_than_arg_list)]
 
     # If the last group is False, there is no exceedance, return nan
-    if groups[-1][0] == False:
-        return np.nan
+    if groups[-1][0] == False: return np.nan
 
     # The argument will be the sum of all the other group lengths up to the last group
     # As the -1 group is being used, this will be when permanent emergence occurs
@@ -643,8 +641,7 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
         xr.DataArray: DataArray containing the time of the first permanent exceedance for each point.
     """
     # If time is not provided, use 'year' component of ds's time
-    if time is None:
-        time = ds.time.dt.year.values
+    if time is None: time = ds.time.dt.year.values
         
     # Partial function to compute the exceedance argument
     partial_exceedance_func = partial(get_exceedance_arg, time=time, threshold=threshold, comparison_func=comparison_func)

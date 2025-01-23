@@ -35,6 +35,7 @@ CHUNKS = {
 best_chunks_raw = {'time':-1, 'latitude': 90, 'longitude': 120}
 best_chunks = {'time':-1, 'lat': 90, 'lon': 120}
 
+
 def rechunk_lat_lon(dataset: xr.Dataset, lat_chunk_size: int, lon_chunk_size: int) -> xr.Dataset:
     """
     Rechunk the dataset to divide the 'lat' and 'lon' dimensions into specified sizes
@@ -94,7 +95,7 @@ def open_gpcc(resample=False):
     return gcpp_ds
 
 
-def open_best():
+def open_best(chunks=None):
     """
     Open and process BEST temperature dataset.
 
@@ -121,7 +122,7 @@ def open_best():
     print('  -- resampling to yearly mean')
     best_ds = best_ds.resample(time='Y').mean()
     # Compute and return the processed dataset
-    best_ds = best_ds.compute().chunk(best_chunks)
+    best_ds = best_ds.compute().chunk(best_chunks if chunks is None else chunks)
     best_ds.attrs['dataset_name'] = 'best'
 
     return best_ds
