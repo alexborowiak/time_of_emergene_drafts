@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as daskarray
+from scipy.stats import spearmanr
+
 
 from numpy.typing import ArrayLike
 
@@ -105,7 +107,7 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
     correlation_df = correlation_df.loc[data_vars, :][data_vars]
     return correlation_df
     
-
+def xarray_data_var_pattern_correlation_all_combs(ds): return data_var_pattern_correlation_all_combs(ds).to_xarray()
 
 def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> ArrayLike:
     """

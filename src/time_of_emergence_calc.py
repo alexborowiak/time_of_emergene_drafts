@@ -246,7 +246,7 @@ def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"
     logger.info(bin_width)
 
     # Define bin edges
-    bin_edges = np.arange(np.nanmin(arr), np.nanmax(arr) + bin_width, bin_width)
+    bin_edges = np.arange(np.nanmin(arr)-bin_width, np.nanmax(arr) + bin_width, bin_width)
 
     return bin_edges
     
