@@ -143,6 +143,8 @@ def open_era5(
     raw data from NetCDF files, performs resampling to yearly averages or other 
     specified methods, and returns the processed data.
 
+    '/g/data/rt52/era5/single-levels/monthly-averaged'
+
     Args:
         var (str): The name of the ERA5 variable to load (e.g., 't2m', 'cape').
         return_raw (bool): Return the raw data (don't resample and rename).

@@ -166,6 +166,171 @@ def percentage_lat_lons(ds_num, ds_denom, weights):
     percent_ds = ds_num_sum / ds_denom_sum * 100
 
     return percent_ds
+    
+def compute_region_metadata(only_1s_ds_region: xr.Dataset, max_points: xr.Dataset) -> dict:
+    """Compute metadata for a region, including available and maximum points."""
+    number_of_points = only_1s_ds_region.sum(dim=['lat', 'lon']).values.item()
+    max_number_of_points = max_points.sum(dim=['lat', 'lon']).values.item()
+    return {
+        'available': number_of_points,
+        'maximum': max_number_of_points
+    }
+
+
+
+def compute_weights(ds: xr.Dataset) -> xr.DataArray:
+    """Compute weights based on latitude for area-weighted calculations."""
+    weights = np.cos(np.deg2rad(ds.lat))
+    weights.name = 'weights'
+    return weights
+
+
+
+def prepare_region_datasets(
+    binary_emergence_ds: xr.Dataset,
+    only_1s_ds: xr.Dataset,
+    land_mask_ds: xr.Dataset,
+    region_name: str,
+    lat_slice: slice)-> tuple:
+    
+    """
+    Prepare datasets for a specific region, applying masking if needed.
+    """
+    
+    ds_region = binary_emergence_ds.sel(lat=lat_slice).expand_dims({'region': [region_name]})
+    only_1s_ds_region = only_1s_ds.sel(lat=lat_slice)
+
+    if region_name in ['land', 'ocean']:
+        logger.debug(f'Applying mask for {region_name=}')
+        mask_to_use_ds = xr.where(land_mask_ds, 0, 1) if region_name == 'land' else xr.where(land_mask_ds, 1, 0)
+        logger.debug(f'\n{ds_region}\n')
+
+        ds_region = ds_region.where(mask_to_use_ds)
+        only_1s_ds_region = only_1s_ds_region.where(mask_to_use_ds)
+
+        logger.debug(f'\n{ds_region}\n')
+    return ds_region, only_1s_ds_region
+
+def check_for_null(ds):  return not ds.dims and not ds.data_vars
+
+
+def percent_emerged_regions(
+    toe_metric_ds,
+    toe_ds,
+    does_not_emerge_ds,
+    land_mask_ds,
+    regions:list=None,
+    return_all=False,
+    logginglevel='ERROR',
+    debug=False,
+):
+    utils.change_logginglevel(logginglevel)
+    # Check for null input
+    def check_for_null(ds):  return not ds.dims and not ds.data_vars
+    if check_for_null(toe_metric_ds): return
+
+    # Ensure proper handling of xarray objects
+    if not isinstance(toe_metric_ds, (xr.Dataset, xr.DataArray)):
+        raise TypeError(f"Expected xarray.Dataset or xarray.DataArray, got {type(toe_metric_ds)}")
+    
+    # Ensure time dimension is valid
+    if 'time' not in toe_metric_ds.dims or not hasattr(toe_metric_ds.time, 'dt'):
+        raise ValueError("The 'time' dimension is missing or not a datetime array in toe_metric_ds.")
+
+    # Apply binary emergence calculation
+    binary_emergence_ds = xr.apply_ufunc(
+        calculate_returned_binary_ds,
+        toe_metric_ds,
+        toe_ds,
+        toe_metric_ds.time.dt.year.values,
+        input_core_dims=[['time'], [], ['time']],
+        output_core_dims=[['time']],
+        vectorize=True,
+        dask='parallelized'
+    )
+    
+    # Convert values to binary (1 or 0)
+    binary_emergence_ds = xr.where(binary_emergence_ds == 1, 1, 0)
+    # Only return where the dataset does emerge (seems to be issue for some reason)
+    binary_emergence_ds = binary_emergence_ds.where(does_not_emerge_ds == 0)
+    # Compute weights and percentage emergence
+    only_1s_ds = xr.ones_like(binary_emergence_ds.isel(time=0))
+
+    weights = compute_weights(binary_emergence_ds)
+
+    if regions is None: regions = toe_const.regionLatLonTuples
+
+
+    ds_collection = []
+    for region in regions:
+        logger.info(region)
+
+        ds_region, only_1s_ds_region = prepare_region_datasets(
+            binary_emergence_ds,
+            only_1s_ds,
+            land_mask_ds, 
+            region.name.lower(),
+            region.value.latlon
+        )
+
+        if region == 'land': logger.info(ds_region)
+
+        time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
+
+        if check_for_null(time_series_ds): continue
+            
+        # time_series_ds.attrs = compute_region_metadata(only_1s_ds_region, max_points)
+
+        ds_collection.append(time_series_ds)
+
+    if debug: return ds_collection
+    emergence_time_series_ds = xr.concat(ds_collection, dim='region')
+    logger.info(emergence_time_series_ds.region.values)
+    
+    return emergence_time_series_ds
+
+
+
+# def percent_emerged_regins(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 
+#                                          only_1s_ds: xr.Dataset, regions: list, logginglevel='ERROR') -> xr.Dataset:
+#     """
+#     Calculate the percentage of stability for regions based on binary emergence data.
+
+#     Parameters:
+#         binary_emergence_ds (xr.Dataset): Dataset containing binary emergence data.
+#         land_mask_ds (xr.Dataset): Dataset containing land mask data.
+#         only_1s_ds (xr.Dataset): Dataset with only values of 1 for valid data points.
+#         regions (list): List of region objects containing a name and latitude slice.
+#         logginglevel (str): Logging level for the function. Default is 'ERROR'.
+
+#     Returns:
+#         xr.Dataset: Dataset with percentage of stability for each region.
+#     """
+#     utils.change_logginglevel(logginglevel)
+
+#     weights = compute_weights(binary_emergence_ds)
+#     ds_collection = []
+#     points_in_region_dict = {}
+
+#     for region in regions:
+#         region_name, lat_slice = region['name'].lower(), region['slice']
+
+#         ds_region, only_1s_ds_region, max_points = prepare_region_datasets(
+#             binary_emergence_ds, only_1s_ds, land_mask_ds, region_name, lat_slice
+#         )
+
+#         time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
+#         ds_collection.append(time_series_ds)
+
+#         points_in_region_dict[region_name] = compute_region_metadata(
+#             only_1s_ds_region, max_points
+#         )
+
+#     emergence_time_series_ds = xr.concat(ds_collection, dim='region')
+#     emergence_time_series_ds.attrs = points_in_region_dict
+    
+#     return emergence_time_series_ds
+
 
 
 def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 
@@ -209,38 +374,6 @@ def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_m
     return emergence_time_series_ds
 
 
-def compute_weights(ds: xr.Dataset) -> xr.DataArray:
-    """Compute weights based on latitude for area-weighted calculations."""
-    weights = np.cos(np.deg2rad(ds.lat))
-    weights.name = 'weights'
-    return weights
-
-
-def prepare_region_datasets(binary_emergence_ds: xr.Dataset, only_1s_ds: xr.Dataset,
-                             land_mask_ds: xr.Dataset, region_name: str, lat_slice: slice) -> tuple:
-    """Prepare datasets for a specific region, applying masking if needed."""
-    ds_region = binary_emergence_ds.sel(lat=lat_slice).expand_dims({'region': [region_name]})
-    only_1s_ds_region = only_1s_ds.sel(lat=lat_slice)
-
-    max_points = xr.where(only_1s_ds_region, 1, 1)
-
-    if region_name in ['land', 'ocean']:
-        mask_to_use_ds = xr.where(land_mask_ds, 0, 1) if region_name == 'land' else xr.where(land_mask_ds, 1, 0)
-        ds_region = ds_region.where(mask_to_use_ds)
-        only_1s_ds_region = only_1s_ds_region.where(mask_to_use_ds)
-        max_points = max_points.where(mask_to_use_ds)
-
-    return ds_region, only_1s_ds_region, max_points
-
-
-def compute_region_metadata(only_1s_ds_region: xr.Dataset, max_points: xr.Dataset) -> dict:
-    """Compute metadata for a region, including available and maximum points."""
-    number_of_points = only_1s_ds_region.sum(dim=['lat', 'lon']).values.item()
-    max_number_of_points = max_points.sum(dim=['lat', 'lon']).values.item()
-    return {
-        'available': number_of_points,
-        'maximum': max_number_of_points
-    }
 
 
 

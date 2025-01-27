@@ -94,7 +94,7 @@ class LocationBoxes(Enum):
 
 class Region(NamedTuple):
     name: str
-    slice: tuple
+    latlon: tuple
 
 class regionLatLonTuples(Enum):
     GLOBAL = Region('global', slice(None, None))
