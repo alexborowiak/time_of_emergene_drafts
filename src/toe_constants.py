@@ -23,11 +23,12 @@ class YearRange(Enum):
 
 # The threshold of emergence for the different tests
 PVALUE_THESHOLD1 = 0.01
-OVERLAP_THRESHOLD = 62
+OVERLAP_THRESHOLD = 63
+HD_THRESHOLD = 33
 SN_THRESHOLD1 = 1
 
 PVALUE_TESTS = ['ks', 'ttest', 'anderson']
-OVERLAP_TESTS = ['frac', 'perkins', 'hd']
+OVERLAP_TESTS = ['frac', 'perkins']
 SN_TYPES = ['sn', 'sn_lowess', 'sn_poly', 'sn_average', 'nn']
 
 
