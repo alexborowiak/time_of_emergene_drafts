@@ -221,7 +221,7 @@ def generate_custom_colormap(levels, cmap_name, range_start, range_end):
     color_list = color_list[int(len(color_list) * range_start):int(len(color_list) * range_end)]
     return color_list
 
-def generate_sn_colormap_and_levels():
+def generate_sn_colormap_and_levels(vmin=-0.4, middle_vmax=1, upper_vmax=2, extreme_vmax=2, step=0.2):
     """
     Generate a custom colormap and levels for the SN plot.
 
@@ -229,10 +229,10 @@ def generate_sn_colormap_and_levels():
     levels (array): The levels array.
     cmap (LinearSegmentedColormap): The custom colormap.
     """
-    lower_levels = np.arange(-.4, 0.1, 0.2)
-    middle_levels = np.arange(0, 1.2, 0.2)
-    upper_levels = np.arange(1, 2, 0.2)
-    extreme_levels = np.arange(2, 2.4, 0.2)
+    lower_levels = np.arange(vmin, step/2, step)
+    middle_levels = np.arange(0, middle_vmax+step, step)
+    upper_levels = np.arange(1, upper_vmax, step)
+    extreme_levels = np.arange(2, extreme_vmax+2*step, step)
     levels = np.unique(np.concatenate([lower_levels, middle_levels, upper_levels, extreme_levels]))
     
     # Generate custom colormaps for each level range
