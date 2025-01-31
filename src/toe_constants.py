@@ -22,8 +22,39 @@ class YearRange(Enum):
 
 
 # The threshold of emergence for the different tests
+
+
+from abc import ABC
+from dataclasses import dataclass, fields
+from typing import Optional
+
+@dataclass(frozen=True)
+class ThresholdProfileBase(ABC):
+    pvalue_threshold: Optional[float] = None  # Optional with default None
+    overlap_threshold: Optional[int] = None
+    hd_threshold: Optional[int] = None
+    sn_threshold: Optional[int] = None
+
+    def __repr__(self) -> str:
+        field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+        return f"{self.__class__.__name__}({field_values})"
+
+@dataclass(frozen=True)
+class ThresholdProfileLow(ThresholdProfileBase):
+    pvalue_threshold: float = 0.01
+    overlap_threshold: int = 62
+    hd_threshold: int = 33
+    sn_threshold: int = 1
+
+@dataclass(frozen=True)
+class ThresholdProfileMid(ThresholdProfileBase):
+    overlap_threshold: int = 32
+    hd_threshold: int = 66
+    sn_threshold: int = 2
+
+
 PVALUE_THESHOLD1 = 0.01
-OVERLAP_THRESHOLD = 63
+OVERLAP_THRESHOLD = 62
 HD_THRESHOLD = 33
 SN_THRESHOLD1 = 1
 
