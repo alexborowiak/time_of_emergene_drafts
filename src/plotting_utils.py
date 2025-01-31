@@ -21,6 +21,25 @@ class PlotConfig(NamedTuple):
     tick_size = 14
     legend_text_size = 14
 
+def format_latlon(location_dict):
+    """
+    Create a formatted plot title using latitude and longitude.
+    
+    Parameters:
+    -----------
+    location_dict : dict
+        Dictionary containing 'lat' and 'lon' keys for location.
+    
+    Returns:
+    --------
+    str
+        Formatted title in the form "{latitude}°{N/S}, {longitude}°{E/W}".
+    """
+    lat = f"{abs(location_dict['lat'])}°{'N' if location_dict['lat'] >= 0 else 'S'}"
+    lon = f"{abs(location_dict['lon'])}°{'E' if location_dict['lon'] >= 0 else 'W'}"
+    return f"{lat}, {lon}"
+
+
 def create_levels(vmax:float, vmin:float=None, step:float=1)->np.ndarray:
     '''
     Ensures that all instances of creating levels using vmax + step as the max.
@@ -273,4 +292,39 @@ def create_colorbar(plot, cax, levels, tick_offset=None, cut_ticks=1, round_leve
     return cbar
 
 
+
+def style_plot(ax, legend_loc='upper left', legend_bbox=None, **kwargs):
+    # Set defaults with flexible kwargs
+    grid_linewidth = kwargs.get('grid_linewidth', 0.5)
+    grid_linestyle = kwargs.get('grid_linestyle', '--')
+    grid_alpha = kwargs.get('grid_alpha', 0.7)
+    facecolor = kwargs.get('facecolor', '#f9f9f9')
+    fontsize = kwargs.get('fontsize', 12)
+    xtick_spacing = kwargs.get('xtick_spacing', 5)
+    hide_alternate_xticks = kwargs.get('hide_alternate_xticks', True)
+    
+    # Apply grid and background style
+    ax.grid(True, which='both', linestyle=grid_linestyle, linewidth=grid_linewidth, alpha=grid_alpha)
+    ax.set_facecolor(facecolor)
+    
+    # Customize axis labels
+    ax.set_ylabel(kwargs.get('ylabel', ''), fontsize=fontsize)
+    ax.set_xlabel(kwargs.get('xlabel', ''), fontsize=fontsize)
+    
+    # Customize legend
+    if ax.get_legend_handles_labels()[0]:  # Only add if legend items exist
+        if legend_bbox:
+            ax.legend(loc=legend_loc, fontsize=kwargs.get('legend_fontsize', 10), frameon=False, bbox_to_anchor=legend_bbox)
+        else:
+            ax.legend(loc=legend_loc, fontsize=kwargs.get('legend_fontsize', 10), frameon=False)
+    
+    # Set and style x-ticks (assuming time axis for consistency)
+    time_values = ax.get_lines()[0].get_xdata()  # Automatically detect x-axis data
+    xticks = np.arange(*np.take(time_values, [0, -1]), xtick_spacing)
+    ax.set_xticks(xticks)
+    
+    if hide_alternate_xticks:
+        xtick_labels = xticks.astype(str)
+        xtick_labels[::2] = ''  # Hide every other label for cleaner look
+        ax.set_xticklabels(xtick_labels)
 
