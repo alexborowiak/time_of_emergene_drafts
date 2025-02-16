@@ -40,6 +40,27 @@ def format_latlon(location_dict):
     return f"{lat}, {lon}"
 
 
+
+def add_lat_markers(ax, fontscale:float=1):
+    special_lats = [23.5, -23.5, 67.5, -67.5]
+    special_lats_str = [str(lat) + r'$^\circ$' +('N' if lat >= 0 else 'S')  for lat in special_lats]
+    ax.set_yticks(special_lats)
+    ax.set_yticklabels(special_lats_str, fontsize=8*fontscale)
+    ax.set_ylabel('')
+
+
+def add_lon_markers(ax, fontscale:float=1):
+    special_lon = np.arange(-180, 210, 30)
+    special_lon_str = [str(lat) + r'$^\circ$' +('E' if lat >= 0 else 'W')  for lat in special_lon]
+    ax.set_xticks(special_lon)
+    ax.set_xticklabels(special_lon_str, fontsize=8*fontscale)
+    ax.set_xlabel('')
+
+def add_lat_lon_markers(ax, fontscale:float=1):
+    add_lat_markers(ax, fontscale)
+    add_lon_markers(ax, fontscale)
+
+
 def create_levels(vmax:float, vmin:float=None, step:float=1)->np.ndarray:
     '''
     Ensures that all instances of creating levels using vmax + step as the max.

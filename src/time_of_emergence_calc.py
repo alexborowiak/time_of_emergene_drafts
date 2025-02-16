@@ -411,23 +411,52 @@ def create_x(arr:np.ndarray=None, bmin:float=None, bmax:float=None, num_points=1
     x = np.linspace(bmin, bmax, num_points)
     return x
 
-def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
+# def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
+    # ''''''
 
-    # No x values provided - created own
-    if x is None: x = create_x(arr, bmin, bmax)
+    # # No x values provided - created own
+    # if x is None: x = create_x(arr, bmin, bmax)
         
-    # Remove NaN and infinite values from the arrays
-    arr = arr[np.isfinite(arr)]    
-    # Compute the KDE for each array
-    kde = gaussian_kde(arr, **kwargs)
-    kde_vals = kde(x)
+    # # Remove NaN and infinite values from the arrays
+    # arr = arr[np.isfinite(arr)]    
+    # # Compute the KDE for each array
+    # kde = gaussian_kde(arr, **kwargs)
+    # kde_vals = kde(x)
 
-    kde_vals /= np.trapz(kde_vals, x)
+    # kde_vals /= np.trapz(kde_vals, x)
 
-    return x, kde_vals
+    # return x, kde_vals
 
 def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=None, **kwargs):
+    """
+    Computes the Kernel Density Estimate (KDE) of the input array using Gaussian KDE.
 
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input array for which the KDE is computed. NaN and infinite values are removed.
+    x : np.ndarray, optional
+        Array of x values at which to evaluate the KDE. If not provided, 
+        t is generated using `create_x(arr, bmin, bmax)`.
+    bmin : float, optional
+        Minimum boundary for x values when `x` is not provided.
+    bmax : float, optional
+        Maximum boundary for x values when `x` is not provided.
+    **kwargs : dict
+        Additional keyword arguments passed to `gaussian_kde`.
+
+    Returns
+    -------
+    x : np.ndarray
+        The x values at which the KDE is evaluated.
+    kde_vals : np.ndarray
+        The computed KDE values, normalized so that the integral over `x` equals 1.
+
+    Notes
+    -----
+    - The function automatically removes NaN and infinite values from `arr` before computing the KDE.
+    - The KDE is computed using `scipy.stats.gaussian_kde` and normalized using the trapezoidal rule (`np.trapz`).
+    """
     # No x values provided - created own
     if x is None: x = create_x(arr, bmin, bmax)
         
