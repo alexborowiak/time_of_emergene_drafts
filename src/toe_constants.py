@@ -118,6 +118,8 @@ NAME_CONVERSION_DICT_SHORT = {
 }
 
 
+kde_kwargs= dict(bw_method=0.2) # silverman, scott#bw_method=0.2)
+
 class LocationBoxes(Enum):
     NORTH_AMERICA = dict(lat=slice(10, 66), lon=slice(-160, -49))
     NORTH_AMERICA_LAND_TARGET = dict(lat=slice(10, 66), lon=slice(-120, -80))

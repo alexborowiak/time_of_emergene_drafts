@@ -41,23 +41,63 @@ def format_latlon(location_dict):
 
 
 
-def add_lat_markers(ax, fontscale:float=1):
+def add_lat_markers(ax, fontscale: float = 1, side: str = "left"):
+    """
+    Adds latitude markers to the specified side of the plot.
+    
+    Parameters:
+    ax : matplotlib.axes.Axes
+        The axis to modify.
+    fontscale : float, optional
+        Scale factor for the font size of labels (default is 1).
+    side : str, optional
+        Side to place labels on ('left' or 'right', default is 'left').
+    """
     special_lats = [23.5, -23.5, 67.5, -67.5]
-    special_lats_str = [str(lat) + r'$^\circ$' +('N' if lat >= 0 else 'S')  for lat in special_lats]
+    special_lats_str = [str(lat) + r'$^\circ$' + ('N' if lat >= 0 else 'S') for lat in special_lats]
+    
     ax.set_yticks(special_lats)
-    ax.set_yticklabels(special_lats_str, fontsize=8*fontscale)
+    ax.set_yticklabels(special_lats_str, fontsize=8 * fontscale)
+    
+    if side == "right":
+        ax.yaxis.tick_right()
+        ax.yaxis.set_label_position("right")
+    else:
+        ax.yaxis.tick_left()
+        ax.yaxis.set_label_position("left")
+    
     ax.set_ylabel('')
 
-
-def add_lon_markers(ax, fontscale:float=1):
+def add_lon_markers(ax, fontscale: float = 1):
+    """
+    Adds longitude markers to the plot.
+    
+    Parameters:
+    ax : matplotlib.axes.Axes
+        The axis to modify.
+    fontscale : float, optional
+        Scale factor for the font size of labels (default is 1).
+    """
     special_lon = np.arange(-180, 210, 30)
-    special_lon_str = [str(lat) + r'$^\circ$' +('E' if lat >= 0 else 'W')  for lat in special_lon]
+    special_lon_str = [str(lon) + r'$^\circ$' + ('E' if lon >= 0 else 'W') for lon in special_lon]
+    
     ax.set_xticks(special_lon)
-    ax.set_xticklabels(special_lon_str, fontsize=8*fontscale)
+    ax.set_xticklabels(special_lon_str, fontsize=8 * fontscale)
     ax.set_xlabel('')
 
-def add_lat_lon_markers(ax, fontscale:float=1):
-    add_lat_markers(ax, fontscale)
+def add_lat_lon_markers(ax, fontscale: float = 1, side: str = "left"):
+    """
+    Adds both latitude and longitude markers to the plot.
+    
+    Parameters:
+    ax : matplotlib.axes.Axes
+        The axis to modify.
+    fontscale : float, optional
+        Scale factor for the font size of labels (default is 1).
+    side : str, optional
+        Side to place latitude labels on ('left' or 'right', default is 'left').
+    """
+    add_lat_markers(ax, fontscale, side)
     add_lon_markers(ax, fontscale)
 
 
@@ -313,7 +353,6 @@ def create_colorbar(plot, cax, levels, tick_offset=None, cut_ticks=1, round_leve
     return cbar
 
 
-
 def style_plot(ax, legend_loc='upper left', legend_bbox=None, **kwargs):
     # Set defaults with flexible kwargs
     grid_linewidth = kwargs.get('grid_linewidth', 0.5)
@@ -349,3 +388,39 @@ def style_plot(ax, legend_loc='upper left', legend_bbox=None, **kwargs):
         xtick_labels[::2] = ''  # Hide every other label for cleaner look
         ax.set_xticklabels(xtick_labels)
 
+
+
+
+def create_discrete_colorbar(cmap, levels, cax, label, orientation='vertical', fontscale=1, **kwargs):
+    """
+    Create a discrete colorbar with the given colormap and levels.
+    
+    Args:
+        cmap: Colormap to use.
+        levels: Discrete levels (boundaries).
+        cax: Colorbar axis.
+        label: Label for the colorbar.
+    """
+    norm = mpl.colors.BoundaryNorm(boundaries=levels, ncolors=cmap.N)
+    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+    
+    # Use plt.colorbar when cax is provided, no need for fig
+    cbar = plt.colorbar(sm, cax=cax, orientation=orientation, **kwargs)
+    
+    cbar.set_ticks(levels)
+    cbar.ax.set_title(label, fontsize=12 * fontscale, pad=20)
+    
+    # Scale y-tick labels' font size
+    cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
+    
+    return cbar
+
+
+def hatch(ax, ds, **kwargs):
+    invert = lambda ds: xr.where(ds, 0, 1)
+
+    ds = invert(ds)
+    LON, LAT = np.meshgrid(ds.lon.values, ds.lat.values)
+    ax.contourf(LON, LAT, ds.values, levels=[-1, 0, 1, 2], **kwargs)
+
+not_stable_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)

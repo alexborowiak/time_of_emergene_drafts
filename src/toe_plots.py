@@ -36,6 +36,34 @@ TEST_PLOT_DICT = {
 }
 
 
+test_colors = {
+    'sn_lowess_base': '#1f77b4',  # Blue
+    'ks': '#ff7f0e',             # Orange
+    'ttest': '#ffa34d',          # Light Orange (similar to ks but distinct)
+    'perkins': '#2ca02c',        # Bright Green
+    'frac': '#8bc34a',           # Lime Green (lighter and vibrant)
+    'hd': '#556b2f',             # Olive Green (distinct and darker)
+}
+
+
+NAME_MAPPING = {
+    'best_tas': 'BEST - SAT',
+    'era5_2t': 'ERA5 -  SAT',
+    'era5_tx99count': 'ERA5 - \n TX99Count',
+    'era5_tx99p9count': 'ERA5 - \n TX99.9Count'
+}
+
+METRIC_MAP = {
+ 'sn': 'S/N Ratio', # \n(Base Noise)',
+ 'sn_lowess_base': 'S/N Ratio', # \n(Base Noise)',
+  'sn_rolling': 'S/N Ratio (Rolling Noise)',
+ 'ks': 'Kolmogorov-\nSmirnov Test',
+ 'ttest': 'T-Test',
+ 'perkins': 'Perkins\nSkill Score',
+ 'frac': 'Fractional\nGeometric\nArea',
+ 'hd': 'Hellinger\nDistance'}
+
+
 
 def format_lat_lon_title(location):
     lat = location['lat']
@@ -284,3 +312,60 @@ def plot_condition(ds, ax, left_column, right_column, **kwargs):
     None
     """
     xr.where((ds[left_column] + ds[right_column])>0, 1, 0).plot(ax=ax, **kwargs)
+
+
+
+
+
+
+def percent_emerged_series(emergence_series_da, toe_metric_list: np.ndarray = None, time=None, ax=None, legend=True, fontscale=1):
+    """
+    Plots percent emerged series for specified metrics.
+
+    Parameters:
+    - emergence_series_da: xarray.DataArray containing emergence data for different metrics.
+    - toe_metric_list: List or array of metrics to plot. Defaults to all metrics in the DataArray.
+    - time: Time values to use for plotting. Defaults to `emergence_series_da.time.values`.
+    - fig: Matplotlib figure object. If None, a new figure and axis are created.
+
+    Returns:
+    - None
+    """
+    # Create figure and axis if not provided
+    if ax is None: fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    # Use default time and metrics if not provided
+    time = emergence_series_da.time.dt.year.values if time is None else time
+    toe_metric_list = list(emergence_series_da) if toe_metric_list is None else toe_metric_list
+
+    # Loop through metrics and plot
+    for metric in toe_metric_list:
+        # Get the color and label for the metric
+        color = test_colors.get(metric, 'black')  # Default to black if not in the dictionary
+        label = METRIC_MAP.get(metric, metric)  # Fallback to metric name if no conversion
+        
+        # Plot the data
+        ax.plot(
+            time, 
+            emergence_series_da[metric].squeeze().values, 
+            color=color, 
+            label=label, 
+            linewidth=3
+        )
+
+    # Customize the plot
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.tick_params(axis='y', labelsize=12*fontscale)
+    ax.tick_params(axis='x', labelsize=12*fontscale)
+    ax.set_yticks(np.arange(0, 120, 20))
+    ax.set_ylim(-2, 102)
+    xticks = toe_emergence_levels
+    ax.set_xticks(xticks)
+    xticks_labels = xticks.astype(str)
+    xticks_labels[::2] = ''
+    ax.set_xticklabels(xticks_labels)
+    # ax.set_xticks(np.arange(*np.take(time, [0, -1]), 10))
+
+    ax.set_xlim(np.take(time, [0, -1]))
+
+    if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
