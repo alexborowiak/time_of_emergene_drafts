@@ -8,7 +8,7 @@ import os, sys
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'))
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
 
-import time_of_emergence_calc as toe_calc
+import toe_calc
 
 
 

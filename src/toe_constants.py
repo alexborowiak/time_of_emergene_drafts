@@ -1,13 +1,28 @@
 from enum import Enum
 from typing import NamedTuple
+from abc import ABC
+from dataclasses import dataclass, fields
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class BasePeriod(ABC):
+    start: int
+    end: int
+    @property
+    def length(self) -> int:
+        return self.end - self.start
+    @property
+    def value(self) -> tuple:
+        return (self.start, self.end)
 
 
 class YearRange(Enum):
     MODERN_PERIOD = (1959, 1989)
     MID_20TH_CENTURY = (1929, 1959)
     EARLY_20TH_CENTURY = (1899, 1929)
-
     ERA5_START = (1940, 1970)
+    
 
     @property
     def start(self):
@@ -23,10 +38,6 @@ class YearRange(Enum):
 
 # The threshold of emergence for the different tests
 
-
-from abc import ABC
-from dataclasses import dataclass, fields
-from typing import Optional
 
 @dataclass(frozen=True)
 class ThresholdProfileBase(ABC):

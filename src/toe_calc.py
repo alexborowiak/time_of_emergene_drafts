@@ -230,7 +230,7 @@ def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"
     """
     utils.change_logginglevel(logginglevel)
     # Remove NaNs
-    # arr = arr[~np.isnan(arr)]
+    arr = arr[~np.isnan(arr)]
         
 
     # If passing in girdded data

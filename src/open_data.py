@@ -114,13 +114,13 @@ def open_best(chunks=None):
     
     # Override time dimension with cftime range
     print('  -- overriding time to use cftime')
-    best_ds_raw['time'] = xr.cftime_range(start='1850-01-01', freq='M', periods=len(best_ds_raw.time.values))
+    best_ds_raw['time'] = xr.cftime_range(start='1850-01-01', freq='ME', periods=len(best_ds_raw.time.values))
     
     # Select temperature variable
     best_ds = best_ds_raw['temperature']
     # Resample to yearly mean
     print('  -- resampling to yearly mean')
-    best_ds = best_ds.resample(time='Y').mean()
+    best_ds = best_ds.resample(time='YE').mean()
     # Compute and return the processed dataset
     best_ds = best_ds.compute().chunk(best_chunks if chunks is None else chunks)
     best_ds.attrs['dataset_name'] = 'best'
