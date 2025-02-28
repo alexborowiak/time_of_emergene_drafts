@@ -291,48 +291,6 @@ def percent_emerged_regions(
 
 
 
-# def percent_emerged_regins(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 
-#                                          only_1s_ds: xr.Dataset, regions: list, logginglevel='ERROR') -> xr.Dataset:
-#     """
-#     Calculate the percentage of stability for regions based on binary emergence data.
-
-#     Parameters:
-#         binary_emergence_ds (xr.Dataset): Dataset containing binary emergence data.
-#         land_mask_ds (xr.Dataset): Dataset containing land mask data.
-#         only_1s_ds (xr.Dataset): Dataset with only values of 1 for valid data points.
-#         regions (list): List of region objects containing a name and latitude slice.
-#         logginglevel (str): Logging level for the function. Default is 'ERROR'.
-
-#     Returns:
-#         xr.Dataset: Dataset with percentage of stability for each region.
-#     """
-#     utils.change_logginglevel(logginglevel)
-
-#     weights = compute_weights(binary_emergence_ds)
-#     ds_collection = []
-#     points_in_region_dict = {}
-
-#     for region in regions:
-#         region_name, lat_slice = region['name'].lower(), region['slice']
-
-#         ds_region, only_1s_ds_region, max_points = prepare_region_datasets(
-#             binary_emergence_ds, only_1s_ds, land_mask_ds, region_name, lat_slice
-#         )
-
-#         time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
-#         ds_collection.append(time_series_ds)
-
-#         points_in_region_dict[region_name] = compute_region_metadata(
-#             only_1s_ds_region, max_points
-#         )
-
-#     emergence_time_series_ds = xr.concat(ds_collection, dim='region')
-#     emergence_time_series_ds.attrs = points_in_region_dict
-    
-#     return emergence_time_series_ds
-
-
-
 def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 
                                          only_1s_ds: xr.Dataset, regions: list, logginglevel='ERROR') -> xr.Dataset:
     """
@@ -373,6 +331,75 @@ def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_m
     
     return emergence_time_series_ds
 
+
+
+
+
+def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> float:
+    """
+    Finds the value in the `arr` array at the index corresponding to the `year_of_emergence` in `time_years`.
+
+    Parameters:
+        arr (ArrayLike): The array of values.
+        year_of_emergence (int): The year of emergence to find the value for.
+        time_years (ArrayLike): The array of years.
+
+    Returns:
+        float: The value in `arr` corresponding to the `year_of_emergence`, or NaN if `year_of_emergence` is NaN
+    """
+    # If year_of_emergence is NaN, return NaN
+    if np.isnan(year_of_emergence): return np.nan
+    
+    # Find the index of year_of_emergence in time_years
+    emergence_arg = np.argwhere(time_years == year_of_emergence)
+    emergence_arg = emergence_arg.item()
+    
+    # Get the value in arr at the emergence_arg index
+    value_at_arg = arr[emergence_arg]
+    
+    return value_at_arg
+
+
+
+# def percent_emerged_regins(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 
+#                                          only_1s_ds: xr.Dataset, regions: list, logginglevel='ERROR') -> xr.Dataset:
+#     """
+#     Calculate the percentage of stability for regions based on binary emergence data.
+
+#     Parameters:
+#         binary_emergence_ds (xr.Dataset): Dataset containing binary emergence data.
+#         land_mask_ds (xr.Dataset): Dataset containing land mask data.
+#         only_1s_ds (xr.Dataset): Dataset with only values of 1 for valid data points.
+#         regions (list): List of region objects containing a name and latitude slice.
+#         logginglevel (str): Logging level for the function. Default is 'ERROR'.
+
+#     Returns:
+#         xr.Dataset: Dataset with percentage of stability for each region.
+#     """
+#     utils.change_logginglevel(logginglevel)
+
+#     weights = compute_weights(binary_emergence_ds)
+#     ds_collection = []
+#     points_in_region_dict = {}
+
+#     for region in regions:
+#         region_name, lat_slice = region['name'].lower(), region['slice']
+
+#         ds_region, only_1s_ds_region, max_points = prepare_region_datasets(
+#             binary_emergence_ds, only_1s_ds, land_mask_ds, region_name, lat_slice
+#         )
+
+#         time_series_ds = percentage_lat_lons(ds_region, only_1s_ds_region, weights)
+#         ds_collection.append(time_series_ds)
+
+#         points_in_region_dict[region_name] = compute_region_metadata(
+#             only_1s_ds_region, max_points
+#         )
+
+#     emergence_time_series_ds = xr.concat(ds_collection, dim='region')
+#     emergence_time_series_ds.attrs = points_in_region_dict
+    
+#     return emergence_time_series_ds
 
 
 
@@ -451,26 +478,3 @@ def calculate_percent_stable_for_regions(binary_emergence_ds: xr.Dataset, land_m
 #     return emergence_time_series_ds
 
 
-def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> float:
-    """
-    Finds the value in the `arr` array at the index corresponding to the `year_of_emergence` in `time_years`.
-
-    Parameters:
-        arr (ArrayLike): The array of values.
-        year_of_emergence (int): The year of emergence to find the value for.
-        time_years (ArrayLike): The array of years.
-
-    Returns:
-        float: The value in `arr` corresponding to the `year_of_emergence`, or NaN if `year_of_emergence` is NaN
-    """
-    # If year_of_emergence is NaN, return NaN
-    if np.isnan(year_of_emergence):
-        return np.nan
-    
-    # Find the index of year_of_emergence in time_years
-    emergence_arg = np.argwhere(time_years == year_of_emergence).item()
-    
-    # Get the value in arr at the emergence_arg index
-    value_at_arg = arr[emergence_arg]
-    
-    return value_at_arg

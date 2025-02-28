@@ -41,27 +41,33 @@ class YearRange(Enum):
 
 @dataclass(frozen=True)
 class ThresholdProfileBase(ABC):
-    pvalue_threshold: Optional[float] = None  # Optional with default None
+    sn_threshold: Optional[int] = None
+    pvalue_threshold: Optional[float] = None
     overlap_threshold: Optional[int] = None
     hd_threshold: Optional[int] = None
-    sn_threshold: Optional[int] = None
 
     def __repr__(self) -> str:
         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
         return f"{self.__class__.__name__}({field_values})"
 
 @dataclass(frozen=True)
-class ThresholdProfileLow(ThresholdProfileBase):
+class ThresholdProfileUnusual(ThresholdProfileBase):
+    sn_threshold: int = 1
     pvalue_threshold: float = 0.01
     overlap_threshold: int = 62
     hd_threshold: int = 33
-    sn_threshold: int = 1
 
 @dataclass(frozen=True)
-class ThresholdProfileMid(ThresholdProfileBase):
+class ThresholdProfileUnfamiliar(ThresholdProfileBase):
+    sn_threshold: int = 2
     overlap_threshold: int = 32
     hd_threshold: int = 66
-    sn_threshold: int = 2
+
+@dataclass(frozen=True)
+class ThresholdProfileUnknown(ThresholdProfileBase):
+    sn_threshold: int = 3
+    overlap_threshold: int = 13
+    hd_threshold: int = 82
 
 
 PVALUE_THESHOLD1 = 0.01
@@ -114,7 +120,7 @@ VARIABLE_CONVERSION_DICT = {
 
 
 NAME_CONVERSION_DICT_SHORT = {
-    'sn': 'S/N (LOWESS)',#'Signal-to-Noise Ratio'
+    'sn': 'S/N',#'Signal-to-Noise Ratio'
     'sn_lowess': 'S/N (LOWESS)',#'Signal-to-Noise Ratio'
     'sn_rolling': 'S/N (Mean)',#'Signal-to-Noise Ratio'
     'sn_anom': 'S/N (Anom)',#'Signal-to-Noise Ratio'

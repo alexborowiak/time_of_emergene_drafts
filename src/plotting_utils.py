@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, NamedTuple
-
+import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -11,7 +11,7 @@ import utils
 
 logger = utils.get_notebook_logger()
 
-
+not_stable_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)
 
 class PlotConfig(NamedTuple):
     title_size = 20
@@ -390,8 +390,17 @@ def style_plot(ax, legend_loc='upper left', legend_bbox=None, **kwargs):
 
 
 
+def format_colobrar(cbar, title='', fontscale=1, pad=20):
+    cbar.ax.set_title(title, fontsize=8 * fontscale, pad=pad)
+    
+    # Scale y-tick labels' font size
+    cbar.ax.tick_params(axis='x', labelsize=8 * fontscale)
 
-def create_discrete_colorbar(cmap, levels, cax, label, orientation='vertical', fontscale=1, **kwargs):
+
+def create_discrete_colorbar(
+    cmap, levels, cax, label, orientation='vertical', fontscale=1,
+    pad = 20, 
+    **kwargs):
     """
     Create a discrete colorbar with the given colormap and levels.
     
@@ -408,7 +417,10 @@ def create_discrete_colorbar(cmap, levels, cax, label, orientation='vertical', f
     cbar = plt.colorbar(sm, cax=cax, orientation=orientation, **kwargs)
     
     cbar.set_ticks(levels)
-    cbar.ax.set_title(label, fontsize=12 * fontscale, pad=20)
+    ticklabels = levels.astype(str)
+    ticklabels[1::2] = ''
+    cbar.set_ticklabels(ticklabels)
+    cbar.ax.set_title(label, fontsize=12 * fontscale, pad=pad)
     
     # Scale y-tick labels' font size
     cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
@@ -423,4 +435,3 @@ def hatch(ax, ds, **kwargs):
     LON, LAT = np.meshgrid(ds.lon.values, ds.lat.values)
     ax.contourf(LON, LAT, ds.values, levels=[-1, 0, 1, 2], **kwargs)
 
-not_stable_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)

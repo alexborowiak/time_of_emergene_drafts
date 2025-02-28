@@ -333,7 +333,7 @@ def perkins_skill_score(arr:np.ndarray, base_arr:np.ndarray, bins:np.ndarray=Non
     if bins is None:
 
         bins = calculate_freedman_diaconis_bins(
-            np.concatenate(np.concatenate([base_arr, arr]), length=len(base_arr))
+            np.concatenate([base_arr, arr]), length=len(base_arr)
         )
     
     # Calculate the relative frequencies for each array
