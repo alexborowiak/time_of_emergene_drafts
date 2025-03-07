@@ -50,7 +50,7 @@ TEST_STYLES = {
     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},   # Blue, solid
     'sn_lowess_full':  {'color': '#1f77b4', 'linestyle': 'dotted'},  # Blue, dotted
     'sn_mean':         {'color': '#4a90e2', 'linestyle': 'solid'},   # Slightly lighter blue, solid
-    'sn_mean_roll':    {'color': '#4a90e2', 'linestyle': 'dotted'},  # Slightly lighter blue, dashed
+    'sn_mean_roll':    {'color': '#4a90e2', 'linestyle': 'dashed'},  # Slightly lighter blue, dashed
     'ks':             {'color': '#ff7f0e', 'linestyle': 'solid'},   # Orange, solid
     'ttest':          {'color': '#ffa34d', 'linestyle': 'dotted'},  # Light Orange, dashed
     'perkins':        {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright Green, solid
@@ -59,7 +59,7 @@ TEST_STYLES = {
 }
 
 TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
-
+TEST_STYLES['sn_roll'] = TEST_STYLES['sn_mean_roll']
 test_styles = TEST_STYLES
 
 NAME_MAPPING = {
@@ -83,7 +83,7 @@ METRIC_MAP = {
  'frac': 'Fractional\nGeometric\nArea',
  'hd': 'Hellinger\nDistance'}
 
-
+METRIC_MAP['sn_roll'] = METRIC_MAP['sn_rolling']
 
 def format_lat_lon_title(location):
     lat = location['lat']
@@ -412,7 +412,7 @@ def percent_emerged_series(
         xticks_labels[::2] = ''
         ax.set_xticklabels(xticks_labels)
 
-    ax.set_xlim(np.take(time, [0, -1]))
+    ax.set_xlim(np.take(xticks, [0, -1]))
 
     if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
 

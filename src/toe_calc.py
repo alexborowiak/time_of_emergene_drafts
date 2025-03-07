@@ -688,7 +688,7 @@ hellinger_distance_optimized = partial(
 
 ##------------------------- Function related to getting ToE from metric
 
-def get_exceedance_arg(arr, time, threshold, comparison_func):
+def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=False):
     """
     Get the index of the first occurrence where arr exceeds a threshold.
 
@@ -697,6 +697,8 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
         time (array-like): Corresponding 1D array of time values.
         threshold (float): Threshold value for comparison.
         comparison_func (function): Function to compare arr with the threshold.
+        time_nan (Bool) = False: Remove nans at end of series. Currently set to False
+        as default, but might change to True in future (just need to check no interference)
 
     Returns:
         float: The time corresponding to the first exceedance of the threshold.
@@ -719,14 +721,15 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
         >>> 12
     """
     # Entire nan slice, return nan
-    if all(np.isnan(arr)):
-        return np.nan
+    if all(np.isnan(arr)): return np.nan
+    if trim_nan:
+        last_valid_idx = np.where(~np.isnan(arr))[0][-1]  # Find last non-NaN index
+        arr = arr[:last_valid_idx + 1]  # Slice up to the last valid index
 
     # Find indices where values exceed threshold
     if comparison_func is not None: # Can be none if values are already bool
         greater_than_arg_list = comparison_func(arr, threshold)
-    else:
-        greater_than_arg_list = arr
+    else: greater_than_arg_list = arr
 
     # If no value exceeds threshold, return nan
     if np.all(greater_than_arg_list == False): return np.nan
@@ -752,7 +755,7 @@ def get_exceedance_arg(arr, time, threshold, comparison_func):
 
 
 def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], comparison_func: Callable,
-                             time: Optional[xr.DataArray] = None)-> xr.DataArray:
+                             time: Optional[xr.DataArray] = None, trim_nan=False)-> xr.DataArray:
     """
     Calculate the time of the first permanent exceedance for each point in a DataArray.
 
@@ -769,14 +772,15 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
     Returns:
         xr.DataArray: DataArray containing the time of the first permanent exceedance for each point.
     """
-    # If time is not provided, use 'year' component of ds's time
-    if time is None: time = ds.time.dt.year.values
-        
-    # Partial function to compute the exceedance argument
-    partial_exceedance_func = partial(get_exceedance_arg, time=time, threshold=threshold, comparison_func=comparison_func)
-               
-    # Dictionary of options for xr.apply_ufunc
-    exceedance_dict = dict(
+
+    # Use 'year' component of ds's time if not provided
+    time = ds.time.dt.year.values if time is None else time
+
+    # Apply exceedance function with xr.apply_ufunc
+    to_return = xr.apply_ufunc(
+        get_exceedance_arg, 
+        ds, 
+        kwargs=dict(time=time, threshold=threshold, comparison_func=comparison_func, trim_nan=trim_nan),
         input_core_dims=[['time']],
         output_core_dims=[[]],
         vectorize=True, 
@@ -785,14 +789,32 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
         keep_attrs='identical'
     )
 
-    # Apply the partial function to compute the permanent exceedance
-    to_retrun = xr.apply_ufunc(
-        partial_exceedance_func, 
-        ds, 
-        **exceedance_dict
-    )
+    return to_return
 
-    return to_retrun
+    # # If time is not provided, use 'year' component of ds's time
+    # if time is None: time = ds.time.dt.year.values
+        
+    # # Partial function to compute the exceedance argument
+    # partial_exceedance_func = partial(get_exceedance_arg, time=time, threshold=threshold, comparison_func=comparison_func)
+               
+    # # Dictionary of options for xr.apply_ufunc
+    # exceedance_dict = dict(
+    #     input_core_dims=[['time']],
+    #     output_core_dims=[[]],
+    #     vectorize=True, 
+    #     dask='parallelized',
+    #     output_dtypes=[float],
+    #     keep_attrs='identical'
+    # )
+
+    # # Apply the partial function to compute the permanent exceedance
+    # to_retrun = xr.apply_ufunc(
+    #     partial_exceedance_func, 
+    #     ds, 
+    #     **exceedance_dict
+    # )
+
+    # return to_retrun
 
 
 

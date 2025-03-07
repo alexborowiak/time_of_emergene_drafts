@@ -397,9 +397,16 @@ def format_colobrar(cbar, title='', fontscale=1, pad=20):
     cbar.ax.tick_params(axis='x', labelsize=8 * fontscale)
 
 
+def replace_slice(arr: np.ndarray, keep: slice = slice(None)) -> np.ndarray:
+    """Replace all elements with '' except those in the given slice."""
+    arr_to_return = np.full_like(arr, '', dtype=object) 
+    arr_to_return[keep] = arr[keep] 
+    return arr_to_return
+
+
 def create_discrete_colorbar(
     cmap, levels, cax, label, orientation='vertical', fontscale=1,
-    pad = 20, 
+    pad = 20, tick_slice=slice(None),
     **kwargs):
     """
     Create a discrete colorbar with the given colormap and levels.
@@ -417,8 +424,9 @@ def create_discrete_colorbar(
     cbar = plt.colorbar(sm, cax=cax, orientation=orientation, **kwargs)
     
     cbar.set_ticks(levels)
-    ticklabels = levels.astype(str)
-    ticklabels[1::2] = ''
+    # ticklabels = levels.astype(str)
+    # ticklabels[1::2] = ''
+    ticklabels = replace_slice(levels, tick_slice)
     cbar.set_ticklabels(ticklabels)
     cbar.ax.set_title(label, fontsize=12 * fontscale, pad=pad)
     
