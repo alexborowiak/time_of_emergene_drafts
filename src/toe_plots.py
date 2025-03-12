@@ -65,6 +65,8 @@ test_styles = TEST_STYLES
 NAME_MAPPING = {
     'best_tas': 'BEST: SAT',
     'cesm1_lens_rcp85_tas': 'CESM1 RCP8.5: SAT',
+    'access_ssp585_tas': 'ACCESS SSP585: SAT',
+
     'era5_2t': 'ERA5:  SAT',
     'era5_tx99count': 'ERA5: \n TX99Count',
     'era5_tx99p9count': 'ERA5: \n TX99.9Count',

@@ -406,7 +406,7 @@ def replace_slice(arr: np.ndarray, keep: slice = slice(None)) -> np.ndarray:
 
 def create_discrete_colorbar(
     cmap, levels, cax, label, orientation='vertical', fontscale=1,
-    pad = 20, tick_slice=slice(None),
+    pad = 20, tick_slice=slice(None), tick_round = 2,
     **kwargs):
     """
     Create a discrete colorbar with the given colormap and levels.
@@ -426,6 +426,7 @@ def create_discrete_colorbar(
     cbar.set_ticks(levels)
     # ticklabels = levels.astype(str)
     # ticklabels[1::2] = ''
+    levels = levels.round(tick_round)
     ticklabels = replace_slice(levels, tick_slice)
     cbar.set_ticklabels(ticklabels)
     cbar.ax.set_title(label, fontsize=12 * fontscale, pad=pad)
