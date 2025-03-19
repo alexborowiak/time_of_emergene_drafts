@@ -65,7 +65,7 @@ def create_exceedance_single_point_dict(toe_ds, timeseries_ds):
 
 
 
-def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
+def data_var_pattern_correlation_all_combs(ds: xr.Dataset, logginglevel='ERROR') -> pd.DataFrame:
     """
     Calculate Spearman correlation between variables in a dataset for all combinations.
 
@@ -77,6 +77,8 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
                       Rows and columns represent variables, values are correlation coefficients.
                       NaN is placed where the variables are the same or have already been correlated.
     """
+    utils.change_logginglevel(logginglevel)
+    
     data_vars = ds.data_vars
     tests_used: List[str] = list(data_vars)
     test_combinations = list(combinations(tests_used, 2))  # Generate unique combinations
@@ -84,6 +86,7 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
     # Dictionary to store correlations
     correlations: Dict[str, Dict[str, float]] = {}
     for test_left, test_right in test_combinations:
+        logger.info(f'{test_left} - {test_right}')
     
         # Calculate Spearman correlation
         corr_values = spearmanr(
@@ -107,7 +110,8 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset) -> pd.DataFrame:
     correlation_df = correlation_df.loc[data_vars, :][data_vars]
     return correlation_df
     
-def xarray_data_var_pattern_correlation_all_combs(ds): return data_var_pattern_correlation_all_combs(ds).to_xarray()
+def xarray_data_var_pattern_correlation_all_combs(ds, logginlevel='ERROR'):
+    return data_var_pattern_correlation_all_combs(ds, logginlevel).to_xarray()
 
 def calculate_returned_binary_ds(arr: ArrayLike, year_of_emergence: int, time_years: ArrayLike) -> ArrayLike:
     """
@@ -260,7 +264,6 @@ def percent_emerged_regions(
 
     if regions is None: regions = toe_const.regionLatLonTuples
 
-
     ds_collection = []
     for region in regions:
         logger.info(region)
@@ -279,8 +282,6 @@ def percent_emerged_regions(
 
         if check_for_null(time_series_ds): continue
             
-        # time_series_ds.attrs = compute_region_metadata(only_1s_ds_region, max_points)
-
         ds_collection.append(time_series_ds)
 
     if debug: return ds_collection

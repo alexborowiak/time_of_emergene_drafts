@@ -115,7 +115,7 @@ def sn_ratio(data_ds, start=0, end=30, window=30):
     ds_sn_lowess_base_period.name = 'sn'
     ds_sn_lowess_full.name = 'sn_lowess_full'
     ds_sn_lowess_roll.name = 'sn_roll'
-    ds_std_roll.name = 'noise_roll'
+    ds_noise_roll.name = 'noise_roll'
     
     out_ds =  xr.merge(
         [ds_sn_lowess_base_period , ds_sn_lowess_full, ds_sn_lowess_roll,

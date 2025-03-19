@@ -92,20 +92,22 @@ EMERGENCE_THRESHOLD_DICT = {
 
 NAME_CONVERSION_DICT = {
     'sn': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
-    'sn_lowess_base': 'S/N Ratio (LOWESS, Base Noise)',
-    'sn_lowess_full': 'S/N Ratio (LOWESS, Full Series Noise)',
+    'sn_lowess_base': 'S/N Ratio (LOWESS,\nBase Noise)',
+    'sn_lowess_full': 'S/N Ratio (LOWESS,\nFull Series Noise)',
     'sn_lowess': 'S/N Ratio (LOWESS)',#'Signal-to-Noise Ratio'
     'sn_lowess_rolling': 'S/N Ratio (LOWESS, Rolling)',#'Signal-to-Noise Ratio'
     'sn_rolling': 'S/N Ratio (Rolling Mean)',#'Signal-to-Noise Ratio'
     'sn_anom': 'S/N Ratio (Anomalies)',#'Signal-to-Noise Ratio'
     'sn_poly4': 'S/N Ratio (4th Order Polynomial)',#'Signal-to-Noise Ratio'
+     'sn_pi' "S/N Ratio\n(LOWESS,\npiControl Noise)"
+     'sn_ens_med' "S/N Ratio\n(Ensemble Median,\npiControl Noise)"
     'sn_lowess_rolling_smooth': 'S/N Ratio (LOWESS, Rolling, smooth)',#'Signal-to-Noise Ratio'
     'nn': 'New Normal',
     'ks': 'Kolmogorov-Smirnov',
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',
     'perkins': 'Perkins Skill Score', 
-    'frac': 'Fractional Geometric Area',
+    'frac': 'Area of\nOverlap',#'Fractional Geometric Area',
     'hd': 'Hellinger Distance'    
 }
 
@@ -130,7 +132,7 @@ NAME_CONVERSION_DICT_SHORT = {
     'ttest': 'T-Test',
     'anderson': 'Anderson-Darling',
     'perkins': 'PSS', 
-    'frac': 'FGA',
+    'frac': 'AO',#'FGA',
     'hd': 'HD'    
 }
 
@@ -158,6 +160,28 @@ class regionLatLonTuples(Enum):
     MID_LAT_NH = Region('mid_lat_nh', slice(23, 66))
     ARCTIC = Region('arctic', slice(66, None))
     ANTARCTIC = Region('antarctic', slice(None, -66))
+
+
+
+
+class RegionLatLonTuples2:
+    GLOBAL = Region('global', slice(None, None))
+    LAND = Region('land', slice(None, None))
+    OCEAN = Region('ocean', slice(None, None))
+    NH = Region('nh', slice(0, None))
+    SH = Region('sh', slice(None, 0))
+    TROPICS = Region('tropics', slice(-23, 23))
+    MID_LAT_SH = Region('mid_lat_sh', slice(-66, -23))
+    MID_LAT_NH = Region('mid_lat_nh', slice(23, 66))
+    ARCTIC = Region('arctic', slice(66, None))
+    ANTARCTIC = Region('antarctic', slice(None, -66))
+
+    @classmethod
+    def all(cls):
+        """Returns a dictionary of all constants."""
+        return {name: getattr(cls, name) for name in dir(cls) 
+                if not name.startswith("__") and isinstance(getattr(cls, name), tuple)}
+
 
 
 NAMING_MAP = {

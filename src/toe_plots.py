@@ -75,17 +75,37 @@ NAME_MAPPING = {
 METRIC_MAP = {
  'sn': 'S/N Ratio', # \n(Base Noise)',
  'sn_lowess_base': 'S/N Ratio\n(LOWESS)', # \n(Base Noise)',
- 'sn_lowess_full': 'S/N Ratio\n(LOWESS, Full Series Noise)', # \n(Base Noise)',
+ 'sn_lowess_full': 'S/N Ratio\n(LOWESS,\nFull Series Noise)', # \n(Base Noise)',
  'sn_rolling': 'S/N Ratio\n(Rolling Noise)',
  'sn_mean': 'S/N Ratio\n(Mean)',
- 'sn_mean_roll': 'S/N Ratio\n(Mean, Adaptive Noise)',
+ 'sn_mean_roll': 'S/N Ratio\n(Mean,\nAdaptive Noise)',
+ 'sn_pi':"S/N Ratio\n(LOWESS,\npiControl Noise)",
+ 'sn_ens_med':"S/N Ratio\n(Ensemble Median,\npiControl Noise)",
  'ks': 'Kolmogorov-\nSmirnov Test',
  'ttest': 'T-Test',
  'perkins': 'Perkins\nSkill Score',
- 'frac': 'Fractional\nGeometric\nArea',
+ 'frac': 'Area of\nOverlap',#'Fractional\nGeometric\nArea',
  'hd': 'Hellinger\nDistance'}
 
 METRIC_MAP['sn_roll'] = METRIC_MAP['sn_rolling']
+
+
+METRIC_MAP_SHORT = {
+    'sn': 'S/N',
+    'sn_lowess_base': 'S/N (Base)',
+    'sn_lowess_full': 'S/N (Full)',
+    'sn_rolling': 'S/N (Adap.)',
+    'sn_mean': 'S/N (Mean)',
+    'sn_mean_roll': 'S/N\n(Mean, Adap.)',
+    'sn_pi': 'S/N (piC)',
+    'sn_ens_med': 'S/N (Ens. Med., piC)',
+    'ks': 'KS',
+    'ttest': 'T-test',
+    'perkins': 'PSS', 
+    'frac': 'AO',
+    'hd': 'HD'
+}
+
 
 def format_lat_lon_title(location):
     lat = location['lat']
@@ -408,11 +428,11 @@ def percent_emerged_series(
     ax.tick_params(axis='x', labelsize=12*fontscale)
     ax.set_yticks(np.arange(0, 120, 20))
     ax.set_ylim(-2, 102)
-    if xticks is not None:
-        ax.set_xticks(xticks)
-        xticks_labels = xticks.astype(str)
-        xticks_labels[::2] = ''
-        ax.set_xticklabels(xticks_labels)
+    # if xticks is not None:
+    #     ax.set_xticks(xticks)
+    #     xticks_labels = xticks.astype(str)
+    #     xticks_labels[::2] = ''
+    #     ax.set_xticklabels(xticks_labels)
 
     ax.set_xlim(np.take(xticks, [0, -1]))
 

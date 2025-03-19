@@ -406,11 +406,10 @@ def replace_slice(arr: np.ndarray, keep: slice = slice(None)) -> np.ndarray:
 
 def create_discrete_colorbar(
     cmap, levels, cax, label, orientation='vertical', fontscale=1,
-    pad = 20, tick_slice=slice(None), tick_round = 2,
-    **kwargs):
+    pad=20, tick_slice=slice(None), tick_round=2, **kwargs):
     """
-    Create a discrete colorbar with the given colormap and levels.
-    
+    Create a discrete colorbar with major and minor ticks.
+
     Args:
         cmap: Colormap to use.
         levels: Discrete levels (boundaries).
@@ -419,22 +418,64 @@ def create_discrete_colorbar(
     """
     norm = mpl.colors.BoundaryNorm(boundaries=levels, ncolors=cmap.N)
     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    
-    # Use plt.colorbar when cax is provided, no need for fig
+
+    # Create colorbar
     cbar = plt.colorbar(sm, cax=cax, orientation=orientation, **kwargs)
-    
-    cbar.set_ticks(levels)
-    # ticklabels = levels.astype(str)
-    # ticklabels[1::2] = ''
+
+    # Round and apply tick slicing
     levels = levels.round(tick_round)
-    ticklabels = replace_slice(levels, tick_slice)
+    major_ticks = levels[tick_slice]  # Major ticks
+    minor_ticks = levels  # All levels as minor ticks
+    # ticklabels = replace_slice(levels, tick_slice)
+    ticklabels = major_ticks
+    # Ensure equal length
+    # if len(major_ticks) != len(ticklabels):
+    #     ticklabels = ticklabels[:len(major_ticks)]
+
+    cbar.set_ticks(major_ticks)
     cbar.set_ticklabels(ticklabels)
+
     cbar.ax.set_title(label, fontsize=12 * fontscale, pad=pad)
-    
+
+    # Add minor ticks (without labels)
+    cbar.ax.yaxis.set_minor_locator(mpl.ticker.FixedLocator(minor_ticks))
+
     # Scale y-tick labels' font size
     cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
-    
+
     return cbar
+
+# def create_discrete_colorbar(
+#     cmap, levels, cax, label, orientation='vertical', fontscale=1,
+#     pad = 20, tick_slice=slice(None), tick_round = 2,
+#     **kwargs):
+#     """
+#     Create a discrete colorbar with the given colormap and levels.
+    
+#     Args:
+#         cmap: Colormap to use.
+#         levels: Discrete levels (boundaries).
+#         cax: Colorbar axis.
+#         label: Label for the colorbar.
+#     """
+#     norm = mpl.colors.BoundaryNorm(boundaries=levels, ncolors=cmap.N)
+#     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+    
+#     # Use plt.colorbar when cax is provided, no need for fig
+#     cbar = plt.colorbar(sm, cax=cax, orientation=orientation, **kwargs)
+    
+#     cbar.set_ticks(levels)
+#     # ticklabels = levels.astype(str)
+#     # ticklabels[1::2] = ''
+#     levels = levels.round(tick_round)
+#     ticklabels = replace_slice(levels, tick_slice)
+#     cbar.set_ticklabels(ticklabels)
+#     cbar.ax.set_title(label, fontsize=12 * fontscale, pad=pad)
+    
+#     # Scale y-tick labels' font size
+#     cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
+    
+#     return cbar
 
 
 def hatch(ax, ds, **kwargs):
