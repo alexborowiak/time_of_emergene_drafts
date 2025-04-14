@@ -47,10 +47,10 @@ test_colors = {
 
 
 TEST_STYLES = {
-    'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},   # Blue, solid
-    'sn_lowess_full':  {'color': '#1f77b4', 'linestyle': 'dotted'},  # Blue, dotted
-    'sn_mean':         {'color': '#4a90e2', 'linestyle': 'solid'},   # Slightly lighter blue, solid
-    'sn_mean_roll':    {'color': '#4a90e2', 'linestyle': 'dashed'},  # Slightly lighter blue, dashed
+    'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
+    'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
+    'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
+    'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
     'ks':             {'color': '#ff7f0e', 'linestyle': 'solid'},   # Orange, solid
     'ttest':          {'color': '#ffa34d', 'linestyle': 'dotted'},  # Light Orange, dashed
     'perkins':        {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright Green, solid
@@ -66,7 +66,7 @@ NAME_MAPPING = {
     'best_tas': 'BEST: SAT',
     'cesm1_lens_rcp85_tas': 'CESM1 RCP8.5: SAT',
     'access_ssp585_tas': 'ACCESS SSP585: SAT',
-
+    'access_ssp585_pr': 'ACCESS SSP585: Precipitation',
     'era5_2t': 'ERA5:  SAT',
     'era5_tx99count': 'ERA5: \n TX99Count',
     'era5_tx99p9count': 'ERA5: \n TX99.9Count',
@@ -354,9 +354,6 @@ def plot_condition(ds, ax, left_column, right_column, **kwargs):
     None
     """
     xr.where((ds[left_column] + ds[right_column])>0, 1, 0).plot(ax=ax, **kwargs)
-
-
-
 
 
 

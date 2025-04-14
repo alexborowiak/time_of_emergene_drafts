@@ -87,11 +87,22 @@ def data_var_pattern_correlation_all_combs(ds: xr.Dataset, logginglevel='ERROR')
     correlations: Dict[str, Dict[str, float]] = {}
     for test_left, test_right in test_combinations:
         logger.info(f'{test_left} - {test_right}')
-    
+
+        ds_left = ds[test_left]
+        ds_right = ds[test_right]
+
+        # If one has member and the other does not e.g. sn_ens_med vs other
+        # if 'member' in list(ds_left) and 'member' not in list(ds_left):
+        if ('member' in ds_left) != ('member' in ds_right):
+            if 'member' in ds_left:
+                ds_left = ds_left.median(dim='member')
+            else:
+                ds_right = ds_right.median(dim='member')
+
         # Calculate Spearman correlation
         corr_values = spearmanr(
-            ds[test_left].values.flatten(),
-            ds[test_right].values.flatten(),
+            ds_left.values.flatten(),
+            ds_right.values.flatten(),
             nan_policy='omit'
         ).correlation
         
@@ -350,9 +361,13 @@ def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_yea
     """
     # If year_of_emergence is NaN, return NaN
     if np.isnan(year_of_emergence): return np.nan
+
+    # The is useful when doing enesemble median, this can result in values that have decimals
+    if isinstance(year_of_emergence, float): year_of_emergence = int(year_of_emergence)
     
     # Find the index of year_of_emergence in time_years
     emergence_arg = np.argwhere(time_years == year_of_emergence)
+    
     emergence_arg = emergence_arg.item()
     
     # Get the value in arr at the emergence_arg index
@@ -360,6 +375,36 @@ def find_value_at_emergence_arg(arr: ArrayLike, year_of_emergence: int, time_yea
     
     return value_at_arg
 
+
+
+def compute_pct_emergence(toe_values, percentile=50):
+    """
+    Determines the interpolated year when 50% of ensemble members have emerged.
+    
+    Parameters:
+    toe_values (list or np.array): Array of emergence years, with NaN for non-emerging members.
+    
+    Returns:
+    float: Interpolated year when 50% of members have emerged, or NaN if fewer than 50% emerge.
+    """
+    toe_values = np.array(toe_values)
+    N_threshold = percentile/100 * len(toe_values)  # 50% threshold
+    valid_toe = np.sort(toe_values[~np.isnan(toe_values)])
+    
+    if len(valid_toe) < np.ceil(N_threshold): return np.nan
+    
+    idx = N_threshold - 1  # 0-based index
+
+    # This occurs when t
+    if idx.is_integer():
+        return valid_toe[int(idx)]
+    
+    lower = valid_toe[int(idx)]
+    upper = valid_toe[int(idx) + 1]
+    weight = idx - int(idx)
+    interpolated_value = lower + weight * (upper - lower)
+    
+    return interpolated_value
 
 
 # def percent_emerged_regins(binary_emergence_ds: xr.Dataset, land_mask_ds: xr.Dataset, 

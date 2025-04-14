@@ -39,6 +39,10 @@ class YearRange(Enum):
 # The threshold of emergence for the different tests
 
 
+from dataclasses import dataclass, fields
+from typing import Optional
+from abc import ABC
+
 @dataclass(frozen=True)
 class ThresholdProfileBase(ABC):
     sn_threshold: Optional[int] = None
@@ -50,24 +54,55 @@ class ThresholdProfileBase(ABC):
         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
         return f"{self.__class__.__name__}({field_values})"
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class ThresholdProfileUnusual(ThresholdProfileBase):
     sn_threshold: int = 1
     pvalue_threshold: float = 0.01
     overlap_threshold: int = 62
     hd_threshold: int = 33
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class ThresholdProfileUnfamiliar(ThresholdProfileBase):
     sn_threshold: int = 2
     overlap_threshold: int = 32
     hd_threshold: int = 66
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class ThresholdProfileUnknown(ThresholdProfileBase):
     sn_threshold: int = 3
     overlap_threshold: int = 13
     hd_threshold: int = 82
+
+
+# @dataclass(frozen=True)
+# class ThresholdProfileBase(ABC):
+#     sn_threshold: Optional[int] = None
+#     pvalue_threshold: Optional[float] = None
+#     overlap_threshold: Optional[int] = None
+#     hd_threshold: Optional[int] = None
+
+#     def __repr__(self) -> str:
+#         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+#         return f"{self.__class__.__name__}({field_values})"
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnusual(ThresholdProfileBase):
+#     sn_threshold: int = 1
+#     pvalue_threshold: float = 0.01
+#     overlap_threshold: int = 62
+#     hd_threshold: int = 33
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnfamiliar(ThresholdProfileBase):
+#     sn_threshold: int = 2
+#     overlap_threshold: int = 32
+#     hd_threshold: int = 66
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnknown(ThresholdProfileBase):
+#     sn_threshold: int = 3
+#     overlap_threshold: int = 13
+#     hd_threshold: int = 82
 
 
 PVALUE_THESHOLD1 = 0.01

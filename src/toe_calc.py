@@ -688,7 +688,7 @@ hellinger_distance_optimized = partial(
 
 ##------------------------- Function related to getting ToE from metric
 
-def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=False):
+def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
     """
     Get the index of the first occurrence where arr exceeds a threshold.
 
@@ -723,8 +723,14 @@ def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=False):
     # Entire nan slice, return nan
     if all(np.isnan(arr)): return np.nan
     if trim_nan:
+        # Remove trailing nans
         last_valid_idx = np.where(~np.isnan(arr))[0][-1]  # Find last non-NaN index
         arr = arr[:last_valid_idx + 1]  # Slice up to the last valid index
+
+        # Removing leading nans
+        location_first_fininite = np.where(np.isfinite(arr))[0][0]
+        arr = arr[location_first_fininite:]
+        time = time[location_first_fininite:]
 
     # Find indices where values exceed threshold
     if comparison_func is not None: # Can be none if values are already bool

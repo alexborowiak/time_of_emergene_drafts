@@ -12,6 +12,8 @@ import utils
 logger = utils.get_notebook_logger()
 
 not_stable_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)
+no_data_plot_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)
+
 
 class PlotConfig(NamedTuple):
     title_size = 20
