@@ -443,7 +443,11 @@ def create_discrete_colorbar(
     cbar.ax.yaxis.set_minor_locator(mpl.ticker.FixedLocator(minor_ticks))
 
     # Scale y-tick labels' font size
-    cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
+    if orientation == 'verital':
+        cbar.ax.tick_params(axis='y', labelsize=10 * fontscale)
+    else:
+        cbar.ax.tick_params(axis='x', labelsize=10 * fontscale)
+
 
     return cbar
 

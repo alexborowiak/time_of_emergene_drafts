@@ -51,16 +51,34 @@ TEST_STYLES = {
     'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
     'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
     'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
-    'ks':             {'color': '#ff7f0e', 'linestyle': 'solid'},   # Orange, solid
-    'ttest':          {'color': '#ffa34d', 'linestyle': 'dotted'},  # Light Orange, dashed
-    'perkins':        {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright Green, solid
-    'frac':          {'color': '#8bc34a', 'linestyle': 'solid'},   # Lime Green, dotted
-    'hd':            {'color': '#556b2f', 'linestyle': 'solid'},  # Olive Green, dashdot
+    'sn_pi':           {'color': '#4682b4', 'linestyle': 'dashdot'},  # Steel blue, dashdot
+    'sn_ens_med':      {'color': '#6ca0dc', 'linestyle': 'dotted'},   # Lighter blue, dotted
+    'ks':              {'color': '#ff7f0e', 'linestyle': 'solid'},    # Orange
+    'ttest':           {'color': '#ffa34d', 'linestyle': 'dotted'},   # Light orange
+    'perkins':         {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright green
+    'frac':            {'color': '#8bc34a', 'linestyle': 'solid'},    # Lime green
+    'hd':              {'color': '#556b2f', 'linestyle': 'solid'},    # Olive green
 }
 
+# Aliases for convenience
 TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
 TEST_STYLES['sn_roll'] = TEST_STYLES['sn_mean_roll']
-test_styles = TEST_STYLES
+
+# TEST_STYLES = {
+#     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
+#     'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
+#     'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
+#     'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
+#     'ks':             {'color': '#ff7f0e', 'linestyle': 'solid'},   # Orange, solid
+#     'ttest':          {'color': '#ffa34d', 'linestyle': 'dotted'},  # Light Orange, dashed
+#     'perkins':        {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright Green, solid
+#     'frac':          {'color': '#8bc34a', 'linestyle': 'solid'},   # Lime Green, dotted
+#     'hd':            {'color': '#556b2f', 'linestyle': 'solid'},  # Olive Green, dashdot
+# }
+
+# TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
+# TEST_STYLES['sn_roll'] = TEST_STYLES['sn_mean_roll']
+
 
 NAME_MAPPING = {
     'best_tas': 'BEST: SAT',
@@ -73,38 +91,73 @@ NAME_MAPPING = {
 }
 
 METRIC_MAP = {
- 'sn': 'S/N Ratio', # \n(Base Noise)',
- 'sn_lowess_base': 'S/N Ratio\n(LOWESS)', # \n(Base Noise)',
- 'sn_lowess_full': 'S/N Ratio\n(LOWESS,\nFull Series Noise)', # \n(Base Noise)',
- 'sn_rolling': 'S/N Ratio\n(Rolling Noise)',
- 'sn_mean': 'S/N Ratio\n(Mean)',
- 'sn_mean_roll': 'S/N Ratio\n(Mean,\nAdaptive Noise)',
- 'sn_pi':"S/N Ratio\n(LOWESS,\npiControl Noise)",
- 'sn_ens_med':"S/N Ratio\n(Ensemble Median,\npiControl Noise)",
- 'ks': 'Kolmogorov-\nSmirnov Test',
- 'ttest': 'T-Test',
- 'perkins': 'Perkins\nSkill Score',
- 'frac': 'Area of\nOverlap',#'Fractional\nGeometric\nArea',
- 'hd': 'Hellinger\nDistance'}
+    'sn': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
+    'sn_lowess_base': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
+    'sn_lowess_full': r'S/N$_{\mathrm{LOWESS,\ full}}$ Ratio',
+    'sn_rolling': r'S/N$_{\mathrm{mean,\ rolling}}$ Ratio',
+    'sn_mean': r'S/N$_{\mathrm{mean,\ base}}$ Ratio',
+    'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$ Ratio',
+    'sn_pi': r'S/N$_{\mathrm{LOWESS,\ piC.}}$ Ratio',
+    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean,\ piC.}}$ Ratio',
+    'ks': 'Kolmogorov-\nSmirnov Test',
+    'ttest': 'T-Test',
+    'perkins': 'Perkins\nSkill Score',
+    'frac': 'Area of\nOverlap',
+    'hd': 'Hellinger\nDistance'
+}
+
+
+
+# METRIC_MAP = {
+#  'sn': r'S/N_{LOWESS, base} Ratio', # \n(Base Noise)',
+#  'sn_lowess_base':'S/N_{LOWESS, base} Ratio',  #'S/N Ratio\n(LOWESS)', # \n(Base Noise)',
+#  'sn_lowess_full': 'S/N_{LOWESS, full} Ratio', #'S/N Ratio\n(LOWESS,\nFull Series Noise)', # \n(Base Noise)',
+#  'sn_rolling': 'S/N_{mean, rolling} Ratio', #'S/N Ratio\n(Rolling Noise)',
+#  'sn_mean':'S/N_{mean, base} Ratio',  #'S/N Ratio\n(Mean)',
+#  'sn_mean_roll': 'S/N_{mean, roll} Ratio', #'S/N Ratio\n(Mean,\nAdaptive Noise)',
+#  'sn_pi':'S/N_{Ens. mean, piC.} Ratio', # "S/N Ratio\n(LOWESS,\npiControl Noise)",
+#  'sn_ens_med':'S/N_{Ens. mean, piC.} Ratio', #"S/N Ratio\n(Ensemble Median,\npiControl Noise)",
+#  'ks': 'Kolmogorov-\nSmirnov Test',
+#  'ttest': 'T-Test',
+#  'perkins': 'Perkins\nSkill Score',
+#  'frac': 'Area of\nOverlap',#'Fractional\nGeometric\nArea',
+#  'hd': 'Hellinger\nDistance'}
 
 METRIC_MAP['sn_roll'] = METRIC_MAP['sn_rolling']
 
 
 METRIC_MAP_SHORT = {
-    'sn': 'S/N',
-    'sn_lowess_base': 'S/N (Base)',
-    'sn_lowess_full': 'S/N (Full)',
-    'sn_rolling': 'S/N (Adap.)',
-    'sn_mean': 'S/N (Mean)',
-    'sn_mean_roll': 'S/N\n(Mean, Adap.)',
-    'sn_pi': 'S/N (piC)',
-    'sn_ens_med': 'S/N (Ens. Med., piC)',
+    'sn': r'S/N$_{\mathrm{LOWESS,\ base}}$',
+    'sn_lowess_base': r'S/N$_{\mathrm{LOWESS,\ base}}$',
+    'sn_lowess_full': r'S/N$_{\mathrm{LOWESS,\ full}}$',
+    'sn_rolling': r'S/N$_{\mathrm{mean,\ rolling}}$',
+    'sn_mean': r'S/N$_{\mathrm{mean,\ base}}$',
+    'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$',
+    'sn_pi': r'S/N$_{\mathrm{piC}}$',
+    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean,\ piC}}$',
     'ks': 'KS',
     'ttest': 'T-test',
-    'perkins': 'PSS', 
+    'perkins': 'PSS',
     'frac': 'AO',
     'hd': 'HD'
 }
+
+
+# METRIC_MAP_SHORT = {
+#     'sn': 'S/N',
+#     'sn_lowess_base': 'S/N (Base)',
+#     'sn_lowess_full': 'S/N (Full)',
+#     'sn_rolling': 'S/N (Adap.)',
+#     'sn_mean': 'S/N (Mean)',
+#     'sn_mean_roll': 'S/N\n(Mean, Adap.)',
+#     'sn_pi': 'S/N (piC)',
+#     'sn_ens_med': 'S/N (Ens. Med., piC)',
+#     'ks': 'KS',
+#     'ttest': 'T-test',
+#     'perkins': 'PSS', 
+#     'frac': 'AO',
+#     'hd': 'HD'
+# }
 
 
 def format_lat_lon_title(location):
@@ -379,11 +432,13 @@ def percent_emerged_series(
     # Use default time and metrics if not provided
     time = emergence_series_da.time.dt.year.values if time is None else time
     toe_metric_list = list(emergence_series_da) if toe_metric_list is None else toe_metric_list
+    # Incase any provided that are not actually in the data
+    toe_metric_list = [tm for tm in toe_metric_list if tm in list(emergence_series_da)]
 
     # Loop through metrics and plot
     for metric in toe_metric_list:
         # Get the color and label for the metric
-        style = test_styles.get(metric, {'color': 'black'})
+        style = TEST_STYLES.get(metric, {'color': 'black'})
         # color = test_colors.get(metric, 'black')  # Default to black if not in the dictionary
         label = METRIC_MAP.get(metric, metric)  # Fallback to metric name if no conversion
         
