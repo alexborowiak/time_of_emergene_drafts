@@ -47,18 +47,38 @@ test_colors = {
 
 
 TEST_STYLES = {
-    'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
-    'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
-    'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
-    'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
-    'sn_pi':           {'color': '#4682b4', 'linestyle': 'dashdot'},  # Steel blue, dashdot
-    'sn_ens_med':      {'color': '#6ca0dc', 'linestyle': 'dotted'},   # Lighter blue, dotted
-    'ks':              {'color': '#ff7f0e', 'linestyle': 'solid'},    # Orange
-    'ttest':           {'color': '#ffa34d', 'linestyle': 'dotted'},   # Light orange
-    'perkins':         {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright green
-    'frac':            {'color': '#8bc34a', 'linestyle': 'solid'},    # Lime green
-    'hd':              {'color': '#556b2f', 'linestyle': 'solid'},    # Olive green
+    # Variations of S/N ratio — based on '#0072B2' (deep blue)
+    'sn_lowess_base':  {'color': '#0072B2', 'linestyle': 'solid'},     # Base blue
+    'sn_lowess_full':  {'color': '#005A9C', 'linestyle': 'dotted'},    # Slightly darker
+    'sn_mean':         {'color': '#66A6D9', 'linestyle': 'solid'},     # Light blue
+    'sn_mean_roll':    {'color': '#004B87', 'linestyle': 'dashed'},    # Navy blue
+    'sn_pi':           {'color': '#3393C3', 'linestyle': 'dashdot'},   # Soft blue-teal
+    'sn_ens_med':      {'color': '#7BAFD4', 'linestyle': 'dotted'},    # Muted blue
+
+    # KS test — '#E69F00' (orange)
+    'ks':              {'color': '#E69F00', 'linestyle': 'solid'},     # Bright orange
+    'ttest':           {'color': '#FDB462', 'linestyle': 'dotted'},    # Lighter orange
+
+    # Fractional emergence — '#009E73' (green family)
+    'perkins':         {'color': '#66C2A5', 'linestyle': 'dotted'},    # Pale green-turquoise
+    'frac':            {'color': '#009E73', 'linestyle': 'solid'},     # Green
+    'hd':              {'color': '#1A7F5A', 'linestyle': 'solid'},     # Darker green
 }
+
+
+# TEST_STYLES = {
+#     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
+#     'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
+#     'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
+#     'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
+#     'sn_pi':           {'color': '#4682b4', 'linestyle': 'dashdot'},  # Steel blue, dashdot
+#     'sn_ens_med':      {'color': '#6ca0dc', 'linestyle': 'dotted'},   # Lighter blue, dotted
+#     'ks':              {'color': '#ff7f0e', 'linestyle': 'solid'},    # Orange
+#     'ttest':           {'color': '#ffa34d', 'linestyle': 'dotted'},   # Light orange
+#     'perkins':         {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright green
+#     'frac':            {'color': '#8bc34a', 'linestyle': 'solid'},    # Lime green
+#     'hd':              {'color': '#556b2f', 'linestyle': 'solid'},    # Olive green
+# }
 
 # Aliases for convenience
 TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
