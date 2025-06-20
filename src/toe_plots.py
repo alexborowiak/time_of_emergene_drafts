@@ -14,6 +14,10 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 import plotting_utils
 import toe_constants as toe_const
 
+
+
+color_list = ['#0072B2', '#E69F00', '#009E73']  # Blue, Orange, Green
+
 TEST_PLOT_DICT = {
     'sn': {'color': 'green', 'marker': 'o'},
     'sn_lowess': {'color': 'green', 'marker': 'o'},
@@ -65,6 +69,7 @@ TEST_STYLES = {
     'hd':              {'color': '#1A7F5A', 'linestyle': 'solid'},     # Darker green
 }
 
+test_styles = TEST_STYLES
 
 # TEST_STYLES = {
 #     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue

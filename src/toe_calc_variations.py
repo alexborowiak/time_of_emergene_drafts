@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 import toe_calc
 import my_stats
 
-def fga(data_ds, base_period_ds, data_ds_window):
+def fga(data_ds, base_period_ds, data_ds_window=None, kde_kwargs=None):
     # The x-values for the KDE are based upon the max and min
     data_max = data_ds.max().persist().values.item()
     data_min = data_ds.min().persist().values.item()
@@ -17,7 +17,7 @@ def fga(data_ds, base_period_ds, data_ds_window):
     x = toe_calc.create_x(bmin=data_min, bmax=data_max, num_points=num_points)
     
     
-    kde_kwargs= dict(bw_method=0.2) # silverman, scott#bw_method=0.2)
+    kde_kwargs= dict(bw_method=0.2) if kde_kwargs is None else kde_kwargs # silverman, scott#bw_method=0.2)
     
     base_period_kde = xr.apply_ufunc(
         toe_calc.create_kde_x_exists,
