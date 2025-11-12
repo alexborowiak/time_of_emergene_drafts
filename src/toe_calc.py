@@ -4,13 +4,13 @@ from itertools import groupby
 from typing import Optional, Callable, Union, Tuple, NamedTuple, List
 from itertools import combinations
 from enum import Enum
-
+from dask.distributed import wait
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as daskarray
-from scipy.stats import anderson_ksamp, ks_2samp,ttest_ind, spearmanr, levene, mannwhitneyu, kruskal, gaussian_kde
+from scipy.stats import anderson_ksamp, ks_2samp, ttest_ind, spearmanr, levene, mannwhitneyu, kruskal, gaussian_kde
 
 from numpy.typing import ArrayLike
 
@@ -19,10 +19,12 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
 
 import toe_constants as toe_const
+
 import utils
-logger = utils.get_notebook_logger()
+from utils import logger
 
 
+import toe_data_analysis as toe_data_an
 
 
 def return_anderson_pvalue(test_arr, base_arr):
@@ -81,7 +83,7 @@ def return_statistical_pvalue(arr1, arr2, stats_test):
     """
     # Check if all values are nan
     if np.all(np.isnan(arr1)) or np.all(np.isnan(arr2)): return np.nan
-    arr1, ar2 = remove_nans(arr1, arr2)
+    arr1, arr2 = remove_nans(arr1, arr2)
 
     return stats_test(arr1, arr2).pvalue
 
@@ -113,13 +115,14 @@ def stats_test_1d_array(arr, stats_func:Callable, window: int=20, base_period_le
     base_list = arr[:base_period_length]
     # Stop when there are not enough points left
     number_iterations = arr.shape[0] - window
-    pval_array = np.zeros(number_iterations)
+    pval_array = []
     
     for t in np.arange(number_iterations):
         arr_subset = arr[t: t+window]
-        p_value = stats_func(base_list, arr_subset) # return_ttest_pvalue
-        pval_array[t] = p_value
+        p_value = stats_func(base_list, arr_subset)
+        pval_array.append(p_value)
 
+    pval_array = np.array(pval_array)
     # TODO: This could be done in the apply_ufunc
     lenghth_diff = arr.shape[0] - pval_array.shape[0]
     pval_array = np.append(pval_array, np.array([np.nan] *lenghth_diff))
@@ -216,7 +219,7 @@ def return_hawkins_signal_and_noise(lt: ArrayLike, gt: ArrayLike, return_reconst
 
 
 
-def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"):
+def calculate_freedman_diaconis_bins(arr, length=None, logginglevel="ERROR"):
     """
     Calculate bin edges using the Freedman-Diaconis rule for a 1D NumPy array.
     https://en.wikipedia.org/wiki/Freedman%E2%80%93Diaconis_rule
@@ -231,6 +234,8 @@ def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"
     utils.change_logginglevel(logginglevel)
     # Remove NaNs
     arr = arr[~np.isnan(arr)]
+
+    logger.trace(len(arr))
         
 
     # If passing in girdded data
@@ -240,10 +245,10 @@ def calculate_freedman_diaconis_bins(arr=None, length=None, logginglevel="ERROR"
     p75 = np.percentile(arr, 75)
     p25 = np.percentile(arr, 25)
     iqr =  p75 - p25
-    print(f'{p75=}, {p25=}, {iqr=}, {length=}')
+    logger.debug(f'\n{p75=}, {p25=}, {iqr=}, {length=}')
     
     bin_width = 2 * iqr / length ** (1 / 3)
-    logger.info(bin_width)
+    logger.info(f'\n{bin_width=}')
 
     # Define bin edges
     bin_edges = np.arange(np.nanmin(arr)-bin_width, np.nanmax(arr) + bin_width, bin_width)
@@ -655,38 +660,6 @@ hellinger_distance_optimized = partial(
 
 
 
-# def __overlap_helper_function_base_fitted(arr_future: np.ndarray, kde_base: np.ndarray, overlap_function, x) -> float:
-#     """
-#     Helper function to calculate the overlap between the KDEs of two arrays using a specified overlap function.
-
-#     Parameters:
-#     arr_future (numpy.ndarray): First input array of values.
-#     arr_base (numpy.ndarray): Second input array of values.
-#     return_all (bool): If False (default) just return the overlap percent. If True,
-#                         return the KDEs and the overlap percent.
-#     kde_kwargs (dict, optional): Keyword arguments to pass to the KDE creation function.
-#     bmax (float, optional): Maximum value for the range of the KDE.
-#     bmin (float, optional): Minimum value for the range of the KDE.
-#     overlap_function (callable, optional): Function to calculate overlap between two distributions.
-#                                            Should accept `kde_base`, `kde_future`, and `x` as arguments.
-
-#     Returns:
-#     float: Overlap area as calculated by the specified overlap function. Returns NaN if any array is fully NaN.
-#     """
-
-#     if not method_kwargs: method_kwargs = {}
-
-#     # Check if any input array is fully NaN
-#     if np.all(np.isnan(arr_future)) or np.all(np.isnan(arr_base)): return np.nan
-
-
-#     _, kde_future = create_kde(arr_future, x, **method_kwargs)
-
-#     out_metric = overlap_function(kde_base, kde_future, x)
-
-#     return out_metric
-
-##------------------------- Function related to getting ToE from metric
 
 def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
     """
@@ -720,17 +693,23 @@ def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
         print(first_exceedance_arg)
         >>> 12
     """
-    # Entire nan slice, return nan
-    if all(np.isnan(arr)): return np.nan
-    if trim_nan:
-        # Remove trailing nans
-        last_valid_idx = np.where(~np.isnan(arr))[0][-1]  # Find last non-NaN index
-        arr = arr[:last_valid_idx + 1]  # Slice up to the last valid index
 
-        # Removing leading nans
-        location_first_fininite = np.where(np.isfinite(arr))[0][0]
-        arr = arr[location_first_fininite:]
-        time = time[location_first_fininite:]
+    if arr.size == 0 or not np.isfinite(arr).any():
+        return np.nan
+    
+    if trim_nan:
+        # Trim trailing *non-finite* (NaN/±inf)
+        last_valid_idx = np.where(np.isfinite(arr))[0][-1]
+        arr  = arr[:last_valid_idx + 1]
+        time = time[:last_valid_idx + 1]
+    
+        # Trim leading non-finite
+        finite_idx = np.flatnonzero(np.isfinite(arr))
+        if finite_idx.size == 0: return np.nan
+            
+        first = finite_idx[0]
+        arr  = arr[first:]
+        time = time[first:]
 
     # Find indices where values exceed threshold
     if comparison_func is not None: # Can be none if values are already bool
@@ -754,10 +733,6 @@ def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
     first_exceedance = time[first_exceedance_arg]
 
     return first_exceedance
-
-
-
-
 
 
 def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], comparison_func: Callable,
@@ -797,6 +772,106 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
 
     return to_return
 
+
+def get_permanent_exceedance_multi_metrics(
+    toe_metrics_ds: xr.Dataset,
+    threshold_profile,
+    end_slice=15, logginglevel='ERROR'):
+    """
+    Determine the year of permanent exceedance for multiple tests in the dataset.
+
+    Parameters:
+    ----------
+    toe_metrics_ds : xarray.Dataset
+        An xarray Dataset containing time series metrics for multiple tests.
+    threshold_profile : 
+        An instance of the threshold profile containing threshold values.
+
+    Returns:
+    -------
+    xarray.Dataset
+        A merged dataset containing the year of permanent exceedance for all tests.
+    """
+    utils.change_logginglevel(logginglevel)
+
+    logger.debug(toe_metrics_ds)
+    logger.debug('\n----------\n')
+        
+    exceedance_list = []
+
+    for test in toe_metrics_ds:
+        # Retrieve the threshold dynamically
+        threshold = threshold_profile.threshold_for(test)
+        #threshold = get_test_threshold(test, threshold_profile)
+
+        # Determine the comparison function
+        greater_equal_keys = {"sn", "hd", "pr", "ratar"}
+        comp_func = np.greater_equal if any(key in test for key in greater_equal_keys) else np.less
+        logger.info(f'{test=} - {threshold=} - {comp_func}')
+
+        # Apply absolute value for 'sn'-related tests
+        data = np.abs(toe_metrics_ds[test]) if 'sn' in test else toe_metrics_ds[test]
+
+        # Calculate permanent exceedance
+        exceedance_da = get_permanent_exceedance(
+            data, threshold=threshold, comparison_func=comp_func, trim_nan=True)
+            
+        exceedance_list.append(exceedance_da)
+
+    toe_ds = xr.merge(exceedance_list)
+    return toe_ds
+
+
+def calculate_percent_member_emergence(toe_ds, preserve=True, percentile=50):
+    '''
+    Calculate the percentile-based emergence across ensemble members.
+    
+    Parameters:
+    - toe_ds: xarray Dataset or DataArray with a 'member' coordinate.
+    - preserve (bool): If True, preserves datasets even if 'member' coordinate is absent.
+    - percentile (int or float): Percentile threshold for emergence (e.g., 50 for median).
+    
+    Returns:
+    - xarray Dataset or DataArray with reduced 'member' dimension, replaced by the specified percentile.
+    '''
+    
+    if 'member' not in toe_ds.coords:
+        return toe_ds if preserve else None
+
+    metrics_with_members = [met for met in toe_ds if "member" in toe_ds[met].coords]
+    metrics_without_members = [met for met in toe_ds if met not in metrics_with_members]
+
+
+    # Make new dataset without the members with metrics
+    if isinstance(toe_ds, xr.Dataset): toe_subset_ds = toe_ds[metrics_with_members]
+    else: toe_subset_ds = toe_ds
+
+    if toe_subset_ds.chunks:
+        toe_subset_ds = toe_subset_ds.chunk({'member':-1}).persist()
+        wait(toe_subset_ds);
+        
+    toe_50pct_access = xr.apply_ufunc(
+        toe_data_an.compute_pct_emergence,
+        toe_subset_ds,
+        kwargs=dict(percentile=percentile),
+        input_core_dims=[['member']],
+        output_core_dims=[[]],
+        vectorize=True,
+        dask='parallelized',
+        output_dtypes=[float]
+    )
+
+    if isinstance(toe_ds, xr.Dataset):
+        if len(metrics_without_members):
+            for met in metrics_without_members:
+                toe_50pct_access[met] = toe_ds[met]
+        
+        # 'sn_ens_med_pi' in toe_ds and isinstance(toe_50pct_access, xr.Dataset):
+        #     toe_50pct_access['sn_ens_med_pi'] = toe_ds['sn_ens_med_pi']
+
+    return toe_50pct_access
+
+
     # # If time is not provided, use 'year' component of ds's time
     # if time is None: time = ds.time.dt.year.values
         
@@ -822,6 +897,38 @@ def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], com
 
     # return to_retrun
 
+# def __overlap_helper_function_base_fitted(arr_future: np.ndarray, kde_base: np.ndarray, overlap_function, x) -> float:
+#     """
+#     Helper function to calculate the overlap between the KDEs of two arrays using a specified overlap function.
+
+#     Parameters:
+#     arr_future (numpy.ndarray): First input array of values.
+#     arr_base (numpy.ndarray): Second input array of values.
+#     return_all (bool): If False (default) just return the overlap percent. If True,
+#                         return the KDEs and the overlap percent.
+#     kde_kwargs (dict, optional): Keyword arguments to pass to the KDE creation function.
+#     bmax (float, optional): Maximum value for the range of the KDE.
+#     bmin (float, optional): Minimum value for the range of the KDE.
+#     overlap_function (callable, optional): Function to calculate overlap between two distributions.
+#                                            Should accept `kde_base`, `kde_future`, and `x` as arguments.
+
+#     Returns:
+#     float: Overlap area as calculated by the specified overlap function. Returns NaN if any array is fully NaN.
+#     """
+
+#     if not method_kwargs: method_kwargs = {}
+
+#     # Check if any input array is fully NaN
+#     if np.all(np.isnan(arr_future)) or np.all(np.isnan(arr_base)): return np.nan
+
+
+#     _, kde_future = create_kde(arr_future, x, **method_kwargs)
+
+#     out_metric = overlap_function(kde_base, kde_future, x)
+
+#     return out_metric
+
+##------------------------- Function related to getting ToE from metric
 
 
 

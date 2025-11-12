@@ -8,8 +8,8 @@ import cartopy.crs as ccrs
 import sys
 
 import utils
+from utils import logger
 
-logger = utils.get_notebook_logger()
 
 not_stable_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)
 no_data_plot_kwargs = dict(hatches=['', '////'], alpha=0, colors=None)
@@ -23,23 +23,32 @@ class PlotConfig(NamedTuple):
     tick_size = 14
     legend_text_size = 14
 
-def format_latlon(location_dict):
+def format_latlon(location):
     """
     Create a formatted plot title using latitude and longitude.
-    
-    Parameters:
-    -----------
-    location_dict : dict
-        Dictionary containing 'lat' and 'lon' keys for location.
-    
-    Returns:
-    --------
+
+    Parameters
+    ----------
+    location : dict or list/tuple
+        If dict: must contain 'lat' and 'lon' keys.
+        If list/tuple: must be ordered [lat, lon].
+
+    Returns
+    -------
     str
         Formatted title in the form "{latitude}°{N/S}, {longitude}°{E/W}".
     """
-    lat = f"{abs(location_dict['lat'])}°{'N' if location_dict['lat'] >= 0 else 'S'}"
-    lon = f"{abs(location_dict['lon'])}°{'E' if location_dict['lon'] >= 0 else 'W'}"
-    return f"{lat}, {lon}"
+    if isinstance(location, dict):
+        lat, lon = location['lat'], location['lon']
+    elif isinstance(location, (list, tuple)) and len(location) == 2:
+        lat, lon = location
+    else:
+        raise TypeError("location must be a dict with 'lat' and 'lon' or a list/tuple [lat, lon]")
+
+    lat_str = f"{abs(lat)}°{'N' if lat >= 0 else 'S'}"
+    lon_str = f"{abs(lon)}°{'E' if lon >= 0 else 'W'}"
+    return f"{lat_str}, {lon_str}"
+
 
 
 

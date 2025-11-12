@@ -4,17 +4,38 @@ from abc import ABC
 from dataclasses import dataclass, fields
 from typing import Optional
 
+from dataclasses import dataclass, fields
+from typing import Optional
+from abc import ABC
+
+
+from dataclasses import dataclass, field
+from abc import ABC
 
 @dataclass(frozen=True)
 class BasePeriod(ABC):
     start: int
     end: int
-    @property
-    def length(self) -> int:
-        return self.end - self.start
+    length: int = field(init=False)
+    def __post_init__(self):
+        object.__setattr__(self, "length", self.end - self.start)
+
     @property
     def value(self) -> tuple:
         return (self.start, self.end)
+
+
+# @dataclass(frozen=True)
+# class BasePeriod(ABC):
+#     start: int
+#     end: int
+#     length: self.length
+#     @property
+#     def length(self) -> int:
+#         return self.end - self.start
+#     @property
+#     def value(self) -> tuple:
+#         return (self.start, self.end)
 
 
 class YearRange(Enum):
@@ -38,71 +59,57 @@ class YearRange(Enum):
 
 # The threshold of emergence for the different tests
 
+from dataclasses import dataclass
 
-from dataclasses import dataclass, fields
-from typing import Optional
-from abc import ABC
+# @dataclass(frozen=True)
+# class ThresholdProfile:
+#     sn_threshold: int | None = None
+#     pvalue_threshold: float | None = None
+#     overlap_threshold: int | None = None
+#     hd_threshold: int | None = None
+#     pr: int | None = None
+#     ratar: int | None = None
+
 
 @dataclass(frozen=True)
-class ThresholdProfileBase(ABC):
-    sn_threshold: Optional[int] = None
-    pvalue_threshold: Optional[float] = None
-    overlap_threshold: Optional[int] = None
-    hd_threshold: Optional[int] = None
+class ThresholdProfile:
+    sn_threshold: float | None = None
+    pvalue_threshold: float | None = None
+    overlap_threshold: float | None = None
+    hd_threshold: float | None = None
+    pr_threshold: int | None = None
+    ratar_threshold: int | None = None
 
-    def __repr__(self) -> str:
-        field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
-        return f"{self.__class__.__name__}({field_values})"
-
-@dataclass(frozen=True, repr=False)
-class ThresholdProfileUnusual(ThresholdProfileBase):
-    sn_threshold: int = 1
-    pvalue_threshold: float = 0.01
-    overlap_threshold: int = 62
-    hd_threshold: int = 33
-
-@dataclass(frozen=True, repr=False)
-class ThresholdProfileUnfamiliar(ThresholdProfileBase):
-    sn_threshold: int = 2
-    overlap_threshold: int = 32
-    hd_threshold: int = 66
-
-@dataclass(frozen=True, repr=False)
-class ThresholdProfileUnknown(ThresholdProfileBase):
-    sn_threshold: int = 3
-    overlap_threshold: int = 13
-    hd_threshold: int = 82
+    def threshold_for(self, test: str) -> float | None:
+        """
+        Get the threshold value for a given test.
+        """
+        if "ks" in test or "ttest" in test or "mwu" in test: return self.pvalue_threshold
+        elif "frac" in test: return self.overlap_threshold
+        elif "hd" in test: return self.hd_threshold
+        elif "sn" in test: return self.sn_threshold
+        elif "pr" in test: return self.pr_threshold
+        elif "ratar" in test: return self.ratar_threshold
+        return None
 
 
-# @dataclass(frozen=True)
-# class ThresholdProfileBase(ABC):
-#     sn_threshold: Optional[int] = None
-#     pvalue_threshold: Optional[float] = None
-#     overlap_threshold: Optional[int] = None
-#     hd_threshold: Optional[int] = None
 
-#     def __repr__(self) -> str:
-#         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
-#         return f"{self.__class__.__name__}({field_values})"
+UNUSUAL_PROFILE = ThresholdProfile(sn_threshold=1, pvalue_threshold=0.01,
+                                   overlap_threshold=62, hd_threshold=33,
+                                  pr_threshold=2, ratar_threshold=2)
+UNFAMILIAR_PROFILE = ThresholdProfile(sn_threshold=2, overlap_threshold=32, hd_threshold=66)
+UNKNOWN_PROFILE = ThresholdProfile(sn_threshold=3, overlap_threshold=13, hd_threshold=82)
 
-# @dataclass(frozen=True)
-# class ThresholdProfileUnusual(ThresholdProfileBase):
-#     sn_threshold: int = 1
-#     pvalue_threshold: float = 0.01
-#     overlap_threshold: int = 62
-#     hd_threshold: int = 33
+UNFAMILIAR_PROFILE_CROSS = ThresholdProfile(
+    sn_threshold=2.37,
+    overlap_threshold=38
+)
 
-# @dataclass(frozen=True)
-# class ThresholdProfileUnfamiliar(ThresholdProfileBase):
-#     sn_threshold: int = 2
-#     overlap_threshold: int = 32
-#     hd_threshold: int = 66
+UNKNOWN_PROFILE_CROSS = ThresholdProfile(
+    sn_threshold=3.67,
+    overlap_threshold=20
+)
 
-# @dataclass(frozen=True)
-# class ThresholdProfileUnknown(ThresholdProfileBase):
-#     sn_threshold: int = 3
-#     overlap_threshold: int = 13
-#     hd_threshold: int = 82
 
 
 PVALUE_THESHOLD1 = 0.01
@@ -110,7 +117,7 @@ OVERLAP_THRESHOLD = 62
 HD_THRESHOLD = 33
 SN_THRESHOLD1 = 1
 
-PVALUE_TESTS = ['ks', 'ttest', 'anderson']
+PVALUE_TESTS = ['ks', 'ttest', 'anderson', 'mwu']
 OVERLAP_TESTS = ['frac', 'perkins']
 SN_TYPES = ['sn', 'sn_lowess', 'sn_poly', 'sn_average', 'nn']
 
@@ -144,15 +151,6 @@ NAME_CONVERSION_DICT = {
     'perkins': 'Perkins Skill Score', 
     'frac': 'Area of\nOverlap',#'Fractional Geometric Area',
     'hd': 'Hellinger Distance'    
-}
-
-VARIABLE_CONVERSION_DICT = {
-    'best_temperature': 'BEST Temp',
-    'era5_t2m': 'ERA5 2m Temp',
-    'era5_cape': 'ERA5 CAPE',
-    'access_pr': 'ACCESS Precip (SSP5-8.5)',
-    'access_ssp585_r10i1p1f1_pr_QSDEC': 'ACCESS Precip\n(Boreal Winter, SSP5-8.5)',
-    'access_ssp585_r10i1p1f1_pr_QSJUN': 'ACCESS Precip\n(Austral Winter, SSP5-8.5)'
 }
 
 
@@ -230,3 +228,76 @@ NAMING_MAP = {
     'mid_lat_sh': 'Mid Latitudes SH',
     'arctic': 'Arctic',
     'antarctic': 'Antarctic'}
+
+
+
+
+# VARIABLE_CONVERSION_DICT = {
+#     'best_temperature': 'BEST Temp',
+#     'era5_t2m': 'ERA5 2m Temp',
+#     'era5_cape': 'ERA5 CAPE',
+#     'access_pr': 'ACCESS Precip (SSP5-8.5)',
+#     'access_ssp585_r10i1p1f1_pr_QSDEC': 'ACCESS Precip\n(Boreal Winter, SSP5-8.5)',
+#     'access_ssp585_r10i1p1f1_pr_QSJUN': 'ACCESS Precip\n(Austral Winter, SSP5-8.5)'
+# }
+
+# @dataclass(frozen=True)
+# class ThresholdProfileBase(ABC):
+#     sn_threshold: Optional[int] = None
+#     pvalue_threshold: Optional[float] = None
+#     overlap_threshold: Optional[int] = None
+#     hd_threshold: Optional[int] = None
+
+#     def __repr__(self) -> str:
+#         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+#         return f"{self.__class__.__name__}({field_values})"
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnusual(ThresholdProfileBase):
+#     sn_threshold: int = 1
+#     pvalue_threshold: float = 0.01
+#     overlap_threshold: int = 62
+#     hd_threshold: int = 33
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnfamiliar(ThresholdProfileBase):
+#     sn_threshold: int = 2
+#     overlap_threshold: int = 32
+#     hd_threshold: int = 66
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnknown(ThresholdProfileBase):
+#     sn_threshold: int = 3
+#     overlap_threshold: int = 13
+#     hd_threshold: int = 82
+
+# @dataclass(frozen=True)
+# class ThresholdProfileBase(ABC):
+#     sn_threshold: Optional[int] = None
+#     pvalue_threshold: Optional[float] = None
+#     overlap_threshold: Optional[int] = None
+#     hd_threshold: Optional[int] = None
+
+#     def __repr__(self) -> str:
+#         field_values = ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+#         return f"{self.__class__.__name__}({field_values})"
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnusual(ThresholdProfileBase):
+#     sn_threshold: int = 1
+#     pvalue_threshold: float = 0.01
+#     overlap_threshold: int = 62
+#     hd_threshold: int = 33
+
+# @dataclass(frozen=True)
+# class ThresholdProfileUnfamiliar(ThresholdProfileBase):
+#     sn_threshold: int = 2
+#     overlap_threshold: int = 32
+#     hd_threshold: int = 66
+
+# @dataclass(frozen=True, repr=False)
+# class ThresholdProfileUnknown(ThresholdProfileBase):
+#     sn_threshold: int = 3
+#     overlap_threshold: int = 13
+#     hd_threshold: int = 82
+

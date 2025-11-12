@@ -1,26 +1,60 @@
+import sys
 from typing import Callable, Tuple, Literal
 
 import numpy as np
 import xarray as xr
 
+from loguru import logger
 
-import logging
-# logging.basicConfig(format="- %(message)s", filemode='w', stream=sys.stdout)
-# logger = logging.getLogger()
+# Define a single format string so you can reuse it
+LOG_FORMAT = (
+    "<green>{time:HH:mm:ss}</green> | "
+    "<level>{level:<8}</level> | "
+    "{name}:{function}:{line} - {message}"
+)
 
-def get_notebook_logger():
-    import logging, sys
-    logging.basicConfig(format=" - %(message)s", filemode='w', stream=sys.stdout)
-    logger = logging.getLogger()
-    return logger
+# Initial sink
+logger.remove()
+logger.add(sys.stdout, format=LOG_FORMAT, level="DEBUG")
 
-logger = get_notebook_logger()
 
-def change_logging_level(logginglevel: str):
-    eval(f'logging.getLogger().setLevel(logging.{logginglevel})')
+def change_logging_level(level: str = None, logginglevel: str = None):
+    """
+    Dynamically change the logger's level in a Jupyter notebook,
+    without losing the custom format.
+    """
+    chosen = level or logginglevel or "INFO"
+
+    # Reset sinks so we don’t accumulate duplicates in notebooks
+    logger.remove()
+    logger.add(
+        sys.stdout,
+        format=LOG_FORMAT,   # keep same format!
+        level=chosen.upper()
+    )
+
+
+# alias
+change_logginglevel = change_logging_level
+
+
+# import logging
+# # logging.basicConfig(format="- %(message)s", filemode='w', stream=sys.stdout)
+# # logger = logging.getLogger()
+
+# def get_notebook_logger():
+#     import logging, sys
+#     logging.basicConfig(format=" - %(message)s", filemode='w', stream=sys.stdout)
+#     logger = logging.getLogger()
+#     return logger
+
+# logger = get_notebook_logger()
+
+# def change_logging_level(logginglevel: str):
+#     eval(f'logging.getLogger().setLevel(logging.{logginglevel})')
     
-def change_logginglevel(logginglevel: str):
-    change_logging_level(logginglevel)
+# def change_logginglevel(logginglevel: str):
+#     change_logging_level(logginglevel)
 
 def find_nth_extreme_location(ds:xr.Dataset, method=Literal['max', 'min'], nth=1, 
                              output_dtype=Literal['tuple', 'dict']):

@@ -12,8 +12,8 @@ from numpy.typing import ArrayLike
 from typing import Optional, Dict, Callable
 
 
-logger = utils.get_notebook_logger()
-
+from utils import logger
+  
 from enum import Enum
 
 
@@ -94,7 +94,7 @@ def lowess_fit(exog: Callable, window:int=50) -> Callable:
     return partial(lowess, exog=exog, frac=window/len(exog), return_sorted=False)
 
 
-def apply_lowess(arr, window=41):
+def apply_lowess(arr, window=41, **kwargs):
     """
     Apply the LOWESS (Locally Weighted Scatterplot Smoothing) algorithm to a 1D array.
 
@@ -114,7 +114,7 @@ def apply_lowess(arr, window=41):
     x = np.arange(arr.shape[0])
 
     # Apply the LOWESS algorithm
-    yhat = lowess(arr, x, frac=window/len(arr), return_sorted=False)
+    yhat = lowess(arr, x, frac=window/len(arr), return_sorted=False, **kwargs)
 
     return yhat
 

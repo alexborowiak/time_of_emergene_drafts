@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 import paths
 
 import utils
-logger = utils.get_notebook_logger()
+from utils import logger
 
 # ERA5_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 12}
 ERA5_SMALL_CHUNKS = {'time': -1, 'lat': 721 // 6, 'lon': 1440 // 24}

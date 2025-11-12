@@ -9,180 +9,247 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as mcolors
 
+import utils
+from utils import logger
 
 sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts', 'src'))
 import plotting_utils
 import toe_constants as toe_const
 
+color_list = ['#1f77b4', '#ff7f0e', '#8bc34a']
 
+main_toe_metrics = ('sn_lowess_base', 'ks', 'ttest', 'frac', 'hd') #, 'perkins'
+main_toe_metrics_no_hype = ('sn_lowess_base', 'frac', 'hd')
+regions = np.array(['global', 'tropics','arctic', 'antarctic', 'land', 'ocean'])
 
-color_list = ['#0072B2', '#E69F00', '#009E73']  # Blue, Orange, Green
+# regions = np.array(['global', 'land', 'ocean',  'antarctic', 'mid_lat_sh', 'tropics', 'mid_lat_nh', 'arctic',])
 
-TEST_PLOT_DICT = {
-    'sn': {'color': 'green', 'marker': 'o'},
-    'sn_lowess': {'color': 'green', 'marker': 'o'},
-    'sn_poly4': {'color': 'blue', 'marker': 'o'},
-    'sn_rolling': {'color': 'purple', 'marker': 'o'},
-    'sn_anom': {'color': 'darkorchid', 'marker': 'o'},
-    'nn': {'color': 'yellow', 'marker': 'o'},
-
-
-    'sn_lowess_rolling': {'color': 'darkgreen', 'marker': 'o'},
-    'sn_lowess_rolling_smooth': {'color': 'green', 'marker': 'o'},
-    
-    'ks': {'color': 'red', 'marker': '^'},
-    'ttest': {'color': 'darkorange', 'marker': '^'},
-    'anderson': {'color': 'sienna', 'marker': '^'},
-
-    'frac': {'color': 'violet', ',marker':'x'},
-    'perkins': {'color':'dimgrey', 'marker':'x'},
-    'hd': {'color':'purple', 'marker':'x'}
+metrics_dict = {
+    "all": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi',
+        'sn_lowess_roll', 'sn_mean_base', 'sn_mean_pi', 'sn_mean_roll',
+        'sn_poly4_base', 'sn_poly_pi', 'sn_ens_med_base', 'sn_ens_med_pi', 'ks', 'ks_bbs',
+        'ttest', 'frac', 'hd',
+    ]),
+    "main": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi',
+        'sn_mean_base', 'sn_poly4_base', 'frac', 'ks', 'ks_bbs', 'ttest', 'ttest_bbs'
+    ]),
+    "supplementary": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi', 'sn_lowess_roll',
+        'sn_mean_base', 'sn_poly4_base', 'sn_ens_med_base',
+        'frac', 'hd', 'ks', 'ks_bbs', 'ttest', 'ttest_bbs', 'mwu'
+    ]),
+    'hype': np.array(['ks_window', 'ks_bbs_window', 'ttest_window', 'ttest_bbs_windwo', 'mwu']), 
+    "all_no_hype": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi',
+        'sn_lowess_roll', 'sn_mean_base', 'sn_mean_pi', 'sn_mean_roll',
+        'sn_poly4_base', 'sn_poly_pi', 'sn_ens_med_base', 'sn_ens_med_pi',
+        'frac', 'hd',
+    ]), 
+    "main_no_hype": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi',
+        'sn_mean_base', 'sn_poly4_base', 'frac'
+        # 'ks', 'ttest' removed
+    ]),
+    "supplementary_no_hype": np.array([
+        'sn_lowess_base', 'sn_lowess_full', 'sn_lowess_pi', 'sn_lowess_roll',
+        'sn_mean_base', 'sn_poly4_base', 'sn_ens_med_base',
+        'frac', 'hd'
+        # 'ks', 'ttest' removed
+    ])
 }
 
-
-test_colors = {
-    'sn_lowess_base': '#1f77b4',  # Blue
-    'ks': '#ff7f0e',             # Orange
-    'ttest': '#ffa34d',          # Light Orange (similar to ks but distinct)
-    'perkins': '#2ca02c',        # Bright Green
-    'frac': '#8bc34a',           # Lime Green (lighter and vibrant)
-    'hd': '#556b2f',             # Olive Green (distinct and darker)
-}
-
-
-TEST_STYLES = {
-    # Variations of S/N ratio — based on '#0072B2' (deep blue)
-    'sn_lowess_base':  {'color': '#0072B2', 'linestyle': 'solid'},     # Base blue
-    'sn_lowess_full':  {'color': '#005A9C', 'linestyle': 'dotted'},    # Slightly darker
-    'sn_mean':         {'color': '#66A6D9', 'linestyle': 'solid'},     # Light blue
-    'sn_mean_roll':    {'color': '#004B87', 'linestyle': 'dashed'},    # Navy blue
-    'sn_pi':           {'color': '#3393C3', 'linestyle': 'dashdot'},   # Soft blue-teal
-    'sn_ens_med':      {'color': '#7BAFD4', 'linestyle': 'dotted'},    # Muted blue
-
-    # KS test — '#E69F00' (orange)
-    'ks':              {'color': '#E69F00', 'linestyle': 'solid'},     # Bright orange
-    'ttest':           {'color': '#FDB462', 'linestyle': 'dotted'},    # Lighter orange
-
-    # Fractional emergence — '#009E73' (green family)
-    'perkins':         {'color': '#66C2A5', 'linestyle': 'dotted'},    # Pale green-turquoise
-    'frac':            {'color': '#009E73', 'linestyle': 'solid'},     # Green
-    'hd':              {'color': '#1A7F5A', 'linestyle': 'solid'},     # Darker green
-}
-
-test_styles = TEST_STYLES
-
-# TEST_STYLES = {
-#     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
-#     'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
-#     'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
-#     'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
-#     'sn_pi':           {'color': '#4682b4', 'linestyle': 'dashdot'},  # Steel blue, dashdot
-#     'sn_ens_med':      {'color': '#6ca0dc', 'linestyle': 'dotted'},   # Lighter blue, dotted
-#     'ks':              {'color': '#ff7f0e', 'linestyle': 'solid'},    # Orange
-#     'ttest':           {'color': '#ffa34d', 'linestyle': 'dotted'},   # Light orange
-#     'perkins':         {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright green
-#     'frac':            {'color': '#8bc34a', 'linestyle': 'solid'},    # Lime green
-#     'hd':              {'color': '#556b2f', 'linestyle': 'solid'},    # Olive green
-# }
-
-# Aliases for convenience
-TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
-TEST_STYLES['sn_roll'] = TEST_STYLES['sn_mean_roll']
-
-# TEST_STYLES = {
-#     'sn_lowess_base':  {'color': '#1f77b4', 'linestyle': 'solid'},    # Original mid-blue
-#     'sn_lowess_full':  {'color': '#005f73', 'linestyle': 'dotted'},   # Dark teal-blue
-#     'sn_mean':         {'color': '#89CFF0', 'linestyle': 'solid'},    # Baby blue
-#     'sn_mean_roll':    {'color': '#0f4c81', 'linestyle': 'dashed'},   # Navy-ish blue
-#     'ks':             {'color': '#ff7f0e', 'linestyle': 'solid'},   # Orange, solid
-#     'ttest':          {'color': '#ffa34d', 'linestyle': 'dotted'},  # Light Orange, dashed
-#     'perkins':        {'color': '#2ca02c', 'linestyle': 'dotted'},   # Bright Green, solid
-#     'frac':          {'color': '#8bc34a', 'linestyle': 'solid'},   # Lime Green, dotted
-#     'hd':            {'color': '#556b2f', 'linestyle': 'solid'},  # Olive Green, dashdot
-# }
-
-# TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
-# TEST_STYLES['sn_roll'] = TEST_STYLES['sn_mean_roll']
 
 
 NAME_MAPPING = {
-    'best_tas': 'BEST: SAT',
-    'cesm1_lens_rcp85_tas': 'CESM1 RCP8.5: SAT',
-    'access_ssp585_tas': 'ACCESS SSP585: SAT',
-    'access_ssp585_pr': 'ACCESS SSP585: Precipitation',
-    'era5_2t': 'ERA5:  SAT',
-    'era5_tx99count': 'ERA5: \n TX99Count',
-    'era5_tx99p9count': 'ERA5: \n TX99.9Count',
+    'best_tas': 'Surface Temperature\n(Berkeley Earth)',
+    'access_ssp585_tas': 'Surface Temperature\n(ACCESS-ESM1-5)',
+    'access_ssp585_pr': 'Annual Precipitation\n(ACCESS-ESM1-5)'
 }
 
-METRIC_MAP = {
+METRIC_NAME_MAP = {
+    # --- S/N ---
     'sn': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
     'sn_lowess_base': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
     'sn_lowess_full': r'S/N$_{\mathrm{LOWESS,\ full}}$ Ratio',
-    'sn_rolling': r'S/N$_{\mathrm{mean,\ rolling}}$ Ratio',
+    'sn_lowess_pi': r'S/N$_{\mathrm{LOWESS,\ piC.}}$ Ratio',
+    'sn_lowess_roll': r'S/N$_{\mathrm{LOWESS,\ roll}}$ Ratio',
     'sn_mean': r'S/N$_{\mathrm{mean,\ base}}$ Ratio',
+    'sn_mean_base': r'S/N$_{\mathrm{mean,\ base}}$ Ratio',
+    'sn_mean_pi': r'S/N$_{\mathrm{mean,\ piC.}}$ Ratio',
     'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$ Ratio',
-    'sn_pi': r'S/N$_{\mathrm{LOWESS,\ piC.}}$ Ratio',
-    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean,\ piC.}}$ Ratio',
+    'sn_poly4_base': r'S/N$_{\mathrm{poly4,\ base}}$ Ratio',
+    'sn_poly_pi': r'S/N$_{\mathrm{poly4,\ piC.}}$ Ratio',
+    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean}}$ Ratio',
+    'sn_ens_med_base': r'S/N$_{\mathrm{Ens.\ mean,\ base}}$ Ratio',
+    'sn_ens_med_pi': r'S/N$_{\mathrm{Ens.\ mean,\ piC.}}$ Ratio',
+
+    # --- Statistical tests ---
     'ks': 'Kolmogorov-\nSmirnov Test',
+    'ks_bbs': 'Kolmogorov-\nSmirnov Test \n(Block Bootstrap)',
     'ttest': 'T-Test',
+    'ttest_bbs': 'T-Test\n(Block Bootstrap)',
+    'mwu': 'Mann–Whitney\nU Test',
+
+    # --- Distances / overlap ---
     'perkins': 'Perkins\nSkill Score',
     'frac': 'Area of\nOverlap',
     'hd': 'Hellinger\nDistance'
 }
 
+METRIC_NAME_MAP['ks_bbs_window'] = METRIC_NAME_MAP['ks_bbs']
+METRIC_NAME_MAP['ks_window'] = METRIC_NAME_MAP['ks']
+METRIC_NAME_MAP['ttest_bbs_window'] = METRIC_NAME_MAP['ttest_bbs']
+METRIC_NAME_MAP['ttest_window'] = METRIC_NAME_MAP['ttest']
 
 
-# METRIC_MAP = {
-#  'sn': r'S/N_{LOWESS, base} Ratio', # \n(Base Noise)',
-#  'sn_lowess_base':'S/N_{LOWESS, base} Ratio',  #'S/N Ratio\n(LOWESS)', # \n(Base Noise)',
-#  'sn_lowess_full': 'S/N_{LOWESS, full} Ratio', #'S/N Ratio\n(LOWESS,\nFull Series Noise)', # \n(Base Noise)',
-#  'sn_rolling': 'S/N_{mean, rolling} Ratio', #'S/N Ratio\n(Rolling Noise)',
-#  'sn_mean':'S/N_{mean, base} Ratio',  #'S/N Ratio\n(Mean)',
-#  'sn_mean_roll': 'S/N_{mean, roll} Ratio', #'S/N Ratio\n(Mean,\nAdaptive Noise)',
-#  'sn_pi':'S/N_{Ens. mean, piC.} Ratio', # "S/N Ratio\n(LOWESS,\npiControl Noise)",
-#  'sn_ens_med':'S/N_{Ens. mean, piC.} Ratio', #"S/N Ratio\n(Ensemble Median,\npiControl Noise)",
-#  'ks': 'Kolmogorov-\nSmirnov Test',
-#  'ttest': 'T-Test',
-#  'perkins': 'Perkins\nSkill Score',
-#  'frac': 'Area of\nOverlap',#'Fractional\nGeometric\nArea',
-#  'hd': 'Hellinger\nDistance'}
-
-METRIC_MAP['sn_roll'] = METRIC_MAP['sn_rolling']
-
-
-METRIC_MAP_SHORT = {
+METRIC_NAME_MAP_SHORT = {
+    # --- S/N LOWESS ---
     'sn': r'S/N$_{\mathrm{LOWESS,\ base}}$',
     'sn_lowess_base': r'S/N$_{\mathrm{LOWESS,\ base}}$',
     'sn_lowess_full': r'S/N$_{\mathrm{LOWESS,\ full}}$',
-    'sn_rolling': r'S/N$_{\mathrm{mean,\ rolling}}$',
+    'sn_lowess_pi': r'S/N$_{\mathrm{LOWESS,\ piC}}$',
+    'sn_lowess_roll': r'S/N$_{\mathrm{LOWESS,\ roll}}$',
+
+    # --- S/N mean ---
     'sn_mean': r'S/N$_{\mathrm{mean,\ base}}$',
+    'sn_mean_base': r'S/N$_{\mathrm{mean,\ base}}$',
+    'sn_mean_pi': r'S/N$_{\mathrm{mean,\ piC}}$',
     'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$',
-    'sn_pi': r'S/N$_{\mathrm{piC}}$',
-    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean,\ piC}}$',
-    'ks': 'KS',
+
+    # --- S/N poly4 ---
+    'sn_poly4_base': r'S/N$_{\mathrm{poly4,\ base}}$',
+    'sn_poly_pi': r'S/N$_{\mathrm{poly4,\ piC}}$',
+
+    # --- S/N ensemble median ---
+    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean}}$',
+    'sn_ens_med_base': r'S/N$_{\mathrm{Ens.\ mean,\ base}}$',
+    'sn_ens_med_pi': r'S/N$_{\mathrm{Ens.\ mean,\ piC}}$',
+
+    # --- Stats tests ---
+    'ks': 'KS test',
+    'ks_bbs': 'KS test(BBS)',
     'ttest': 'T-test',
+    'ttest_bbs': 'T-test (BBS)',
+    'mwu': 'MWU',
+
+    # --- Distances / overlap ---
     'perkins': 'PSS',
     'frac': 'AO',
     'hd': 'HD'
 }
 
+METRIC_NAME_MAP_SHORT['ks_bbs_window'] = METRIC_NAME_MAP_SHORT['ks_bbs']
+METRIC_NAME_MAP_SHORT['ks_window'] = METRIC_NAME_MAP_SHORT['ks']
+METRIC_NAME_MAP_SHORT['ttest_bbs_window'] = METRIC_NAME_MAP_SHORT['ttest_bbs']
+METRIC_NAME_MAP_SHORT['ttest_window'] = METRIC_NAME_MAP_SHORT['ttest']
 
-# METRIC_MAP_SHORT = {
-#     'sn': 'S/N',
-#     'sn_lowess_base': 'S/N (Base)',
-#     'sn_lowess_full': 'S/N (Full)',
-#     'sn_rolling': 'S/N (Adap.)',
-#     'sn_mean': 'S/N (Mean)',
-#     'sn_mean_roll': 'S/N\n(Mean, Adap.)',
-#     'sn_pi': 'S/N (piC)',
-#     'sn_ens_med': 'S/N (Ens. Med., piC)',
-#     'ks': 'KS',
-#     'ttest': 'T-test',
-#     'perkins': 'PSS', 
-#     'frac': 'AO',
-#     'hd': 'HD'
+
+METRIC_MAP = METRIC_NAME_MAP
+METRIC_MAP_SHORT = METRIC_NAME_MAP_SHORT
+
+class StyleDict(dict):
+    def get(self, key, default=None, *, drop_keys=None):
+        """
+        Get a style dict with optional keys removed.
+
+        Parameters
+        ----------
+        key : str
+            The style key (e.g., 'ks', 'sn_lowess_base').
+        default : dict, optional
+            Default dict if key not found.
+        drop_keys : list[str] or None
+            Keys to exclude from the returned dict.
+            If None, returns everything.
+        """
+        d = super().get(key, default)
+        if isinstance(d, dict) and drop_keys:
+            return {k: v for k, v in d.items() if k not in drop_keys}
+        return d
+
+
+TEST_STYLES = StyleDict({
+    # --- S/N LOWESS (anchored to color_list[0]) ---
+    'sn_lowess_base': {'color': color_list[0], 'linestyle': 'solid',  'marker': 'o'},
+    'sn_lowess_full': {'color': color_list[0], 'linestyle': 'dashed', 'marker': 's'},
+    'sn_lowess_pi':   {'color': color_list[0], 'linestyle': 'dotted', 'marker': 'D'},
+    'sn_lowess_roll': {'color': color_list[0], 'linestyle': 'dashdot','marker': '^'},
+
+    # --- S/N MEAN (greys) ---
+    'sn_mean_base': {'color': '#4D4D4D', 'linestyle': 'solid',  'marker': 'v'},
+    'sn_mean_pi':   {'color': '#4D4D4D', 'linestyle': 'dashed', 'marker': 'P'},
+    'sn_mean_roll': {'color': '#4D4D4D', 'linestyle': 'dotted', 'marker': 'X'},
+
+    # --- S/N POLY4 (browns) ---
+    'sn_poly4_base': {'color': '#8C510A', 'linestyle': 'solid',  'marker': '*'},
+    'sn_poly_pi':    {'color': '#8C510A', 'linestyle': 'dashed', 'marker': 'h'},
+
+    # --- S/N ENS_MED (purples) ---
+    'sn_ens_med_base': {'color': '#762A83', 'linestyle': 'solid',  'marker': 'p'},
+    'sn_ens_med_pi':   {'color': '#762A83', 'linestyle': 'dashed', 'marker': '<'},
+
+    # --- Statistical tests ---
+    'ks':        {'color': color_list[1], 'linestyle': 'solid',   'marker': 'o'},  # orange base
+    'ks_bbs':    {'color': color_list[1], 'linestyle': 'dotted',  'marker': 's'},  # orange bootstrap
+    
+    'ttest':     {'color': '#d73027',     'linestyle': 'solid',   'marker': 'v'},  # red base
+    'ttest_bbs': {'color': '#d73027',     'linestyle': 'dashed',  'marker': 'P'},  # red bootstrap
+    
+    'mwu':       {'color': '#542788',     'linestyle': 'solid',   'marker': 'D'},  # violet
+
+
+
+    # --- Distances / overlap (greens, varied shades) ---
+    'frac':    {'color': '#8bc34a', 'linestyle': 'solid',  'marker': 'o'},  # bright green
+    'perkins': {'color': '#4caf50', 'linestyle': 'dashed', 'marker': 's'},  # darker green
+    'hd':      {'color': '#c7e9c0', 'linestyle': 'dotted', 'marker': 'D'}   # pale mint green
+}
+                       )
+
+TEST_STYLES['ks_bbs_window'] = TEST_STYLES['ks_bbs']
+TEST_STYLES['ks_window'] = TEST_STYLES['ks']
+
+TEST_STYLES['ttest_bbs_window'] = TEST_STYLES['ttest_bbs']
+TEST_STYLES['ttest_window'] = TEST_STYLES['ttest']
+
+# Alias so you can use either name
+TEST_PLOT_DICT = TEST_STYLES
+test_styles = TEST_STYLES
+
+
+# TEST_PLOT_DICT = {
+#     # --- S/N family (base = blue #1f77b4) ---
+#     'sn_lowess_base':   {'color': '#1f77b4', 'marker': 'o', 'linestyle': 'solid'},
+#     'sn_lowess_full':   {'color': '#2a82c8', 'marker': 's', 'linestyle': 'dashed'},
+#     'sn_lowess_pi':     {'color': '#3390dc', 'marker': 'D', 'linestyle': 'dotted'},
+#     'sn_lowess_roll':   {'color': '#4da3e7', 'marker': '^', 'linestyle': 'dashdot'},
+#     'sn_mean_base':     {'color': '#66b2ff', 'marker': 'v', 'linestyle': 'solid'},
+#     'sn_mean_pi':       {'color': '#80c1ff', 'marker': 'P', 'linestyle': 'dashed'},
+#     'sn_mean_roll':     {'color': '#99cfff', 'marker': 'X', 'linestyle': 'dotted'},
+#     'sn_poly4_base':    {'color': '#b3ddff', 'marker': '*', 'linestyle': 'solid'},
+#     'sn_poly_pi':       {'color': '#cceaff', 'marker': 'h', 'linestyle': 'dashed'},
+#     'sn_ens_med_base':  {'color': '#e6f5ff', 'marker': 'p', 'linestyle': 'solid'},
+#     'sn_ens_med_pi':    {'color': '#f2faff', 'marker': '<', 'linestyle': 'dashed'},
+
+#     # --- Statistical tests family (base = orange #ff7f0e) ---
+#     'ks':        {'color': '#ff7f0e', 'marker': 'o', 'linestyle': 'solid'},   # base
+#     'ks_bbs':    {'color': '#ff9933', 'marker': 's', 'linestyle': 'dotted'},  # bootstrap
+#     'ttest':     {'color': '#ff7f0e', 'marker': 'v', 'linestyle': 'dashed'},  # base
+#     'ttest_bbs': {'color': '#ff9933', 'marker': 'P', 'linestyle': 'dashdot'}, # bootstrap
+#     'mwu':       {'color': '#ffd9b3', 'marker': 'h', 'linestyle': (0, (3, 5, 1, 5))},  # MWU custom
+
+#     # --- Distances / overlap family (base = green #8bc34a) ---
+#     'frac':    {'color': '#8bc34a', 'marker': 'o', 'linestyle': 'solid'},
+#     'perkins': {'color': '#a6d96a', 'marker': 's', 'linestyle': 'dashed'},
+#     'hd':      {'color': '#c7e9b4', 'marker': 'D', 'linestyle': 'dotted'}
 # }
+
+
+test_styles = TEST_STYLES
+
+
 
 
 def format_lat_lon_title(location):
@@ -438,7 +505,7 @@ def plot_condition(ds, ax, left_column, right_column, **kwargs):
 def percent_emerged_series(
     emergence_series_da, toe_metric_list: np.ndarray = None,
     xticks=None, 
-    time=None, ax=None, legend=True, fontscale=1):
+    time=None, ax=None, legend=True, fontscale=1, logginglevel='ERROR'):
     """
     Plots percent emerged series for specified metrics.
 
@@ -451,22 +518,32 @@ def percent_emerged_series(
     Returns:
     - None
     """
+    utils.change_logginglevel(logginglevel)
     # Create figure and axis if not provided
     if ax is None: fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
     # Use default time and metrics if not provided
-    time = emergence_series_da.time.dt.year.values if time is None else time
+    if time is None:
+        if hasattr(emergence_series_da.time, "dt"):
+            time = emergence_series_da.time.dt.year.values
+        else:
+            time = emergence_series_da.time.values
+
+    
     toe_metric_list = list(emergence_series_da) if toe_metric_list is None else toe_metric_list
     # Incase any provided that are not actually in the data
     toe_metric_list = [tm for tm in toe_metric_list if tm in list(emergence_series_da)]
 
     # Loop through metrics and plot
-    for metric in toe_metric_list:
+    logger.trace(emergence_series_da)
+
+    for i, metric in enumerate(toe_metric_list):
         # Get the color and label for the metric
-        style = TEST_STYLES.get(metric, {'color': 'black'})
+        style = TEST_STYLES.get(metric, {'color': 'black'}, drop_keys=['marker'])
+        #TEST_PLOT_DICT.get(metric, {'color': 'black'}) # TEST_PLOT_DICT, TEST_STYLES
         # color = test_colors.get(metric, 'black')  # Default to black if not in the dictionary
         label = METRIC_MAP.get(metric, metric)  # Fallback to metric name if no conversion
-        
+        logger.debug(f'\n{label=}, {style=}')
         # Plot the data
 
         if 'member' in list(emergence_series_da.coords):
@@ -482,22 +559,13 @@ def percent_emerged_series(
                 time, 
                 emergence_series_da[metric].quantile(0.10, dim='member').squeeze().values, 
                 emergence_series_da[metric].quantile(0.90, dim='member').squeeze().values, 
-                # color=color, 
-                label=label, 
-                linewidth=3,
-                alpha=0.5,
-                **style
-            )
+                label=label,  linewidth=3, alpha=0.5, **style)
 
         else:
             ax.plot(
                 time, 
                 emergence_series_da[metric].squeeze().values, 
-                # color=color, 
-                label=label, 
-                linewidth=3,
-                **style
-            )
+                label=label,  linewidth=3, zorder = len(toe_metric_list) - i, **style)
 
     # Customize the plot
     ax.grid(True, linestyle='--', alpha=0.7)
@@ -505,61 +573,12 @@ def percent_emerged_series(
     ax.tick_params(axis='x', labelsize=12*fontscale)
     ax.set_yticks(np.arange(0, 120, 20))
     ax.set_ylim(-2, 102)
+    ax.set_xlim(np.take(xticks, [0, -1]))
+    if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
+    if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
+        
     # if xticks is not None:
     #     ax.set_xticks(xticks)
     #     xticks_labels = xticks.astype(str)
     #     xticks_labels[::2] = ''
     #     ax.set_xticklabels(xticks_labels)
-
-    ax.set_xlim(np.take(xticks, [0, -1]))
-
-    if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
-
-
-
-# def percent_emerged_series_with_uncertainty(
-#     emergence_series_da, toe_metric_list: np.ndarray = None,
-#     xticks=None, 
-#     time=None, ax=None, legend=True, fontscale=1):
-#     """
-#     Plots percent emerged series for specified metrics.
-
-#     Parameters:
-#     - emergence_series_da: xarray.DataArray containing emergence data for different metrics.
-#     - toe_metric_list: List or array of metrics to plot. Defaults to all metrics in the DataArray.
-#     - time: Time values to use for plotting. Defaults to `emergence_series_da.time.values`.
-#     - fig: Matplotlib figure object. If None, a new figure and axis are created.
-
-#     Returns:
-#     - None
-#     """
-#     # Create figure and axis if not provided
-#     if ax is None: fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-
-#     # Use default time and metrics if not provided
-#     time = emergence_series_da.time.dt.year.values if time is None else time
-#     toe_metric_list = list(emergence_series_da) if toe_metric_list is None else toe_metric_list
-
-#     # Loop through metrics and plot
-#     for metric in toe_metric_list:
-#         # Get the color and label for the metric
-#         color = test_colors.get(metric, 'black')  # Default to black if not in the dictionary
-#         label = METRIC_MAP.get(metric, metric)  # Fallback to metric name if no conversion
-        
-
-
-#     # Customize the plot
-#     ax.grid(True, linestyle='--', alpha=0.7)
-#     ax.tick_params(axis='y', labelsize=12*fontscale)
-#     ax.tick_params(axis='x', labelsize=12*fontscale)
-#     ax.set_yticks(np.arange(0, 120, 20))
-#     ax.set_ylim(-2, 102)
-#     if xticks is not None:
-#         ax.set_xticks(xticks)
-#         xticks_labels = xticks.astype(str)
-#         xticks_labels[::2] = ''
-#         ax.set_xticklabels(xticks_labels)
-
-#     ax.set_xlim(np.take(time, [0, -1]))
-
-    if legend: ax.legend(fontsize=14*fontscale, loc='upper left')
