@@ -59,7 +59,7 @@ def polynomial_fit(y: ArrayLike, x:Optional[ArrayLike] = None, order:float=None,
     Returns:
         ArrayLike: The fitted line.
     """
-    if all(np.isnan(y)): return y # All values are nan, don't proceed
+    if np.all(np.isnan(y)): return y # All values are nan, don't proceed
 
 
     if nan_removal == 'endpoints':

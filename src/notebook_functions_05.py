@@ -487,28 +487,27 @@ def add_agg_line(axes, ds, regions):
                 # linestyle = '-'
                 zorder = 4
                 linewidth = 2.5  # Slightly thicker to stand out
-            ax.axvline(loc, label=label, linewidth=1.5, linestyle='-', color=color)
+            ax.axvline(loc, label=label, linewidth=2, linestyle='-', color=color)
 
 
 def plot_percent_emerged_series(
     time_series_tree, variables=None, toe_metrics=None, dim=None, dim_vals = None,
-    fig=None, axes=None, labels='ylabels', bbox_to_anchor=None, ncol=3, logginglevel='ERROR'
+    fig=None, axes=None, labels='ylabels', bbox_to_anchor=None, ncol=3, 
+    add_title=True, add_legend=True,
+    logginglevel='ERROR'
 ):
-
+    utils.change_logginglevel(logginglevel)
     def _format_label(value, dim):
         """Format label for y-axis or annotations depending on dim."""
-        if dim == "region":
-            return toe_const.NAMING_MAP.get(value, value) \
-                .replace("Mid", "Mid-\n") \
-                .replace("itudes", "itudes\n")
-        else:
-            return str(value)
+        # .replace("Mid", "Mid-\n") \
+        return toe_const.NAMING_MAP.get(value, value).replace("itudes", "itudes\n") if dim == "region" else str(value)
+                                    
 
     def _apply_labels(ax, labels, row, column, value, dim):
         if (labels == 'ylabels' and row == 4 and column == 0) or \
-           (labels == 'annotations' and row == 3) or \
+           (labels == 'annotations' and row == 2 and column ==0) or \
            (labels == 'ylabels_lhs' and column != 0 and row == 4):
-            ax.set_ylabel('Percent of Surface Area Emerged', fontsize=12)
+            ax.set_ylabel('Percent of Surface Area Emerged', fontsize=12, va='center', fontweight='bold')
 
         if labels == 'ylabels':
             if column == len(variables)-1:
@@ -521,8 +520,8 @@ def plot_percent_emerged_series(
         elif labels == 'annotations':
             ax.annotate(
                 _format_label(value, dim),
-                xy=(0.95, 0.1), xycoords='axes fraction',
-                ha='right', va='center', fontsize=15
+                xy=(0.01, 0.9), xycoords='axes fraction',
+                ha='left', va='top', fontsize=10, fontweight='bold'
             )
 
         elif labels == 'ylabels_lhs':
@@ -544,21 +543,23 @@ def plot_percent_emerged_series(
                 dim = d
                 break
 
-    all_dim_vals = list(time_series_tree[variables[0]][dim].values)
-    if dim_vals is not None:
-        dim_vals = np.intersect1d(dim_vals, all_dim_vals)
-    else:
-        dim_vals = all_dim_vals
+    # all_dim_vals = list(time_series_tree[variables[0]][dim].values)
+    # if dim_vals is not None:
+    #     dim_vals = np.intersect1d(all_dim_vals, dim_vals)
+    if dim_vals is None:
+        dim_vals = list(time_series_tree[variables[0]][dim].values)
 
     if axes is None:
         fig = plt.figure(figsize=(4*len(variables), len(dim_vals)))
-        gs = gridspec.GridSpec(len(dim_vals), len(variables), hspace=.1, wspace=.25)
-        all_axes = []
+        gs = gridspec.GridSpec(len(dim_vals), len(variables), hspace=.1, wspace=.15)
+        axes = [[fig.add_subplot(gs[i, j]) for j in range(len(variables))] for i in range(len(dim_vals))]
+        axes = np.array(axes)
 
+    
     for column, var in enumerate(variables):
         percent_time_ds = time_series_tree[var].ds
-        axes_column = [fig.add_subplot(gs[i, column]) for i in range(len(dim_vals))] if axes is None else axes[:, column]
-
+        axes_column = axes[:, column]
+    
         for row, value in enumerate(dim_vals):
             ax = axes_column[row]
             percent_time_value_ds = percent_time_ds.sel({dim: value})
@@ -578,29 +579,29 @@ def plot_percent_emerged_series(
             _apply_labels(ax, labels, row, column, value, dim)
 
             if row == 0:
-                ax.xaxis.set_label_position("top")
-                ax.xaxis.tick_top()
-                ax.set_title(NAME_MAPPING.get(var, var))
+            #     ax.xaxis.set_label_position("top")
+            #     ax.xaxis.tick_top()
+                if add_title: ax.set_title(NAME_MAPPING.get(var, var))
 
-            if row == 0 or row == len(dim_vals)-1:
+            if row == len(dim_vals)-1: # row == 0 or 
                 ax.set_xlabel("Year", fontsize=10)
             else:
                 ax.set_xlabel("")
                 ax.set_xticklabels([])
 
-        if axes is None:
-            all_axes.append(axes_column)
-
     # Legend placement unchanged
-    if len(all_axes) == 2: midde_axes = -1
-    else: midde_axes = int(np.ceil(len(all_axes)/2)) - 1
-    if bbox_to_anchor is None: bbox_to_anchor = (1 if len(all_axes) == 2 else 0.5, -2.2)
-    leg = all_axes[midde_axes][-1].legend(
-        fontsize=10, loc="lower center", bbox_to_anchor=bbox_to_anchor, ncol=ncol
-    )
+    if add_legend:
+        # axes.shape[-1] is the number of columns
+        if axes.shape[-1] == 2: midde_axes_num = -1
+        else: midde_axes_num = int(np.ceil(axes.shape[-1]/2)) - 1
+        if bbox_to_anchor is None: bbox_to_anchor = (1 if len(axes) == 2 else 0.5, -2.2)
+        legend_kwargs = dict(fontsize=10, loc="lower center", bbox_to_anchor=bbox_to_anchor, ncol=ncol)
+        logger.info(f'Legend kwargs\n{legend_kwargs}\n' + f'{midde_axes_num=}')
+        leg = axes[-1][midde_axes_num].legend(**legend_kwargs)
 
-    return fig, all_axes, leg
-plot_percent_emerged_series
+    return fig, axes#, leg
+        
+# plot_percent_emerged_series
 # def plot_percent_emerged_series(
 #     time_series_tree, variables=None, toe_metrics=None, regions=None,
 #     fig=None, axes=None, labels='ylabels', bbox_to_anchor=None, ncol=3, logginglevel='ERROR'):

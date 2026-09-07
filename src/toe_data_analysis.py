@@ -433,7 +433,7 @@ def percent_emerged_regions(
     only_1s_ds = xr.ones_like(binary_emergence_ds.isel(time=0))
 
     if regions is None:
-        regions = toe_const.regionLatLonTuples
+        regions = toe_const.REGIONS
         logger.info(f"Using default region set ({len(regions)} total regions)")
 
 
@@ -447,11 +447,11 @@ def percent_emerged_regions(
     for region in regions:
         region_name = region.name.lower()
         logger.info(f"--- Processing region: {region.name} ---")
-        logger.debug(f"Lat–lon bounds: {region.value.latlon}")
+        logger.debug(f"Lat–lon bounds: {region.lat_slice}")
 
         # Subset the lat lon, and apply mask if necessary
         ds_region, only_1s_ds_region = __prepare_region_datasets(
-            binary_emergence_ds, only_1s_ds, land_mask_ds, region_name,region.value.latlon)
+            binary_emergence_ds, only_1s_ds, land_mask_ds, region_name,region.lat_slice)
 
         if not ds_region.data_vars:
             logger.warning(f"No valid data after subsetting {region.name}, skipping.")

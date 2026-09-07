@@ -182,17 +182,75 @@ class Region(NamedTuple):
     name: str
     latlon: tuple
 
-class regionLatLonTuples(Enum):
-    GLOBAL = Region('global', slice(None, None))
-    LAND = Region('land', slice(None, None))
-    OCEAN = Region('ocean', slice(None, None))
-    NH = Region('nh', slice(0, None))
-    SH = Region('sh', slice(None, 0))
-    TROPICS = Region('tropics', slice(-23, 23))
-    MID_LAT_SH = Region('mid_lat_sh', slice(-66, -23))
-    MID_LAT_NH = Region('mid_lat_nh', slice(23, 66))
-    ARCTIC = Region('arctic', slice(66, None))
-    ANTARCTIC = Region('antarctic', slice(None, -66))
+from dataclasses import dataclass, field
+from typing import Optional
+
+@dataclass(frozen=True)
+class Region:
+    name: str
+    lat_slice: slice
+    mask: Optional[str] = None
+    tags: frozenset = field(default_factory=frozenset)
+
+class RegionSet:
+    def __init__(self, regions: list[Region]):
+        self._regions = {r.name: r for r in regions}
+    
+    def __getitem__(self, key: str) -> Region:
+        return self._regions[key]
+    
+    def __iter__(self):
+        return iter(self._regions.values())
+    
+    def __len__(self):
+        return len(self._regions)
+    
+    def __repr__(self):
+        return f"RegionSet({list(self._regions.keys())})"
+    
+    def select(self, *names: str) -> 'RegionSet':
+        """Subset by name."""
+        return RegionSet([self._regions[n] for n in names])
+    
+    def tagged(self, *tags: str) -> 'RegionSet':
+        """Subset by any matching tag."""
+        tag_set = set(tags)
+        return RegionSet([r for r in self if r.tags & tag_set])
+    
+    def exclude(self, *names: str) -> 'RegionSet':
+        """Everything except these."""
+        skip = set(names)
+        return RegionSet([r for r in self if r.name not in skip])
+
+    @property
+    def names(self) -> list[str]:
+        return list(self._regions.keys())
+
+
+REGIONS = RegionSet([
+    Region('global',     slice(None, None)),
+    Region('land',       slice(None, None), mask='land'),
+    Region('ocean',      slice(None, None), mask='ocean'),
+    Region('nh',         slice(0, None),    tags=frozenset({'hemisphere'})),
+    Region('sh',         slice(None, 0),    tags=frozenset({'hemisphere'})),
+    Region('tropics',    slice(-23, 23),    tags=frozenset({'zonal_band'})),
+    Region('mid_lat_sh', slice(-66, -23),   tags=frozenset({'zonal_band'})),
+    Region('mid_lat_nh', slice(23, 66),     tags=frozenset({'zonal_band'})),
+    Region('arctic',     slice(66, None),   tags=frozenset({'zonal_band', 'polar'})),
+    Region('antarctic',  slice(None, -66),  tags=frozenset({'zonal_band', 'polar'})),
+])
+
+# class regionLatLonTuples(Enum):
+#     GLOBAL = Region('global', slice(None, None))
+#     LAND = Region('land', slice(None, None))
+#     OCEAN = Region('ocean', slice(None, None))
+#     NH = Region('nh', slice(0, None))
+#     SH = Region('sh', slice(None, 0))
+#     TROPICS = Region('tropics', slice(-23, 23))
+#     MID_LAT_SH = Region('mid_lat_sh', slice(-66, -23))
+#     MID_LAT_NH = Region('mid_lat_nh', slice(23, 66))
+#     ARCTIC = Region('arctic', slice(66, None))
+#     ANTARCTIC = Region('antarctic', slice(None, -66))
 
 
 

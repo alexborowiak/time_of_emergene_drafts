@@ -460,7 +460,7 @@ def create_kde(arr: np.ndarray, x:np.ndarray=None, bmin:float=None, bmax:float=N
     Notes
     -----
     - The function automatically removes NaN and infinite values from `arr` before computing the KDE.
-    - The KDE is computed using `scipy.stats.gaussian_kde` and normalized using the trapezoidal rule (`np.trapz`).
+    - The KDE is computed using `scipy.stats.gaussian_kde` and normalized using the trapzal rule (`np.trapz`).
     """
     # No x values provided - created own
     if x is None: x = create_x(arr, bmin, bmax)
@@ -657,120 +657,336 @@ hellinger_distance_optimized = partial(
     __overlap_helper_function_base_fitted,
     overlap_function=calculate_hellinger_distance)
 
+from numba import njit
 
+# Map comparison functions to direction flags
+_COMPARISON_MAP = {
+    np.greater:       True,
+    np.greater_equal: True,
+    np.less:          False,
+    np.less_equal:    False,
+}
 
-
-
-def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
-    """
-    Get the index of the first occurrence where arr exceeds a threshold.
-
-    Parameters:
-        arr (array-like): 1D array of values.
-        time (array-like): Corresponding 1D array of time values.
-        threshold (float): Threshold value for comparison.
-        comparison_func (function): Function to compare arr with the threshold.
-        time_nan (Bool) = False: Remove nans at end of series. Currently set to False
-        as default, but might change to True in future (just need to check no interference)
-
-    Returns:
-        float: The time corresponding to the first exceedance of the threshold.
-               If there is no exceedance, returns np.nan.
-
-    Example:
-        data = [False, False, False, False, False, False,
-                False, False, False, False, True, False, True, 
-                True, True]
-
-        # Group consecutive True and False values
-        groups = [(key, len(list(group))) for key, group in groupby(data)]
-        print(groups)
-        >>> [(False, 10), (True, 1), (False, 1), (True, 3)]
-        # Check if the last group is True
-        groups[-1][0] == True
-        # Compute the index of the first exceedance
-        first_exceedance_arg = int(np.sum(list(map(lambda x: x[1], groups))[:-1]))
-        print(first_exceedance_arg)
-        >>> 12
-    """
-
-    if arr.size == 0 or not np.isfinite(arr).any():
+@njit
+def _get_exceedance_arg(arr, time, threshold, greater=True, trim_nan=True):
+    n = arr.shape[0]
+    if n == 0:
         return np.nan
-    
+
     if trim_nan:
-        # Trim trailing *non-finite* (NaN/±inf)
-        last_valid_idx = np.where(np.isfinite(arr))[0][-1]
-        arr  = arr[:last_valid_idx + 1]
-        time = time[:last_valid_idx + 1]
+        last = -1
+        for i in range(n - 1, -1, -1):
+            if np.isfinite(arr[i]):
+                last = i
+                break
+        if last == -1:
+            return np.nan
+        first = -1
+        for i in range(last + 1):
+            if np.isfinite(arr[i]):
+                first = i
+                break
+        if first == -1:
+            return np.nan
+    else:
+        first = 0
+        last = n - 1
+        has_finite = False
+        for i in range(n):
+            if np.isfinite(arr[i]):
+                has_finite = True
+                break
+        if not has_finite:
+            return np.nan
+
+    if greater:
+        if arr[last] <= threshold:
+            return np.nan
+    else:
+        if arr[last] >= threshold:
+            return np.nan
+
+    exceedance_start = last
+    for i in range(last - 1, first - 1, -1):
+        if greater:
+            if arr[i] > threshold:
+                exceedance_start = i
+            else:
+                break
+        else:
+            if arr[i] < threshold:
+                exceedance_start = i
+            else:
+                break
+
+    return time[exceedance_start]
+
+
+def get_exceedance_arg(arr, time, threshold, comparison_func=None, greater=True, trim_nan=True):
+    """Legacy wrapper that maps comparison_func to a direction flag for the njit kernel."""
+    if comparison_func is not None:
+        mapped = _COMPARISON_MAP.get(comparison_func)
+        if mapped is None:
+            warnings.warn(
+                f"Unrecognised comparison_func {comparison_func}; "
+                f"supported: {list(_COMPARISON_MAP.keys())}. Defaulting to greater=True.",
+                UserWarning
+            )
+            greater = True
+        else:
+            greater = mapped
+
+    return _get_exceedance_arg(arr, time, threshold, greater=greater, trim_nan=trim_nan)
     
-        # Trim leading non-finite
-        finite_idx = np.flatnonzero(np.isfinite(arr))
-        if finite_idx.size == 0: return np.nan
-            
-        first = finite_idx[0]
-        arr  = arr[first:]
-        time = time[first:]
+def get_permanent_exceedance(
+    ds: xr.DataArray, threshold: Union[int, float], greater:bool=None, comparison_func: Callable=None, 
+    time: Optional[xr.DataArray] = None, trim_nan=False) -> xr.DataArray:
 
-    # Find indices where values exceed threshold
-    if comparison_func is not None: # Can be none if values are already bool
-        greater_than_arg_list = comparison_func(arr, threshold)
-    else: greater_than_arg_list = arr
-
-    # If no value exceeds threshold, return nan
-    if np.all(greater_than_arg_list == False): return np.nan
-
-    # Group consecutive True and False values
-    groups = [(key, len(list(group))) for key, group in groupby(greater_than_arg_list)]
-
-    # If the last group is False, there is no exceedance, return nan
-    if groups[-1][0] == False: return np.nan
-
-    # The argument will be the sum of all the other group lengths up to the last group
-    # As the -1 group is being used, this will be when permanent emergence occurs
-    first_exceedance_arg = int(np.sum(list(map(lambda x: x[1], groups))[:-1]))
-
-    # Get the time corresponding to the first exceedance
-    first_exceedance = time[first_exceedance_arg]
-
-    return first_exceedance
-
-
-def get_permanent_exceedance(ds: xr.DataArray, threshold: Union[int, float], comparison_func: Callable,
-                             time: Optional[xr.DataArray] = None, trim_nan=False)-> xr.DataArray:
-    """
-    Calculate the time of the first permanent exceedance for each point in a DataArray.
-
-    This function calculates the time of the first permanent exceedance (defined as when a value exceeds a threshold
-    and never goes below it again) for each point in a DataArray.
-
-    Parameters:
-        ds (xr.DataArray): Input data.
-        threshold (Union[int, float]): Threshold value for exceedance.
-        comparison_func (Callable): Function to compare values with the threshold.
-        time (Optional[xr.DataArray]): Optional array of time values corresponding to the data. 
-                                        If not provided, it will default to the 'year' component of ds's time.
-
-    Returns:
-        xr.DataArray: DataArray containing the time of the first permanent exceedance for each point.
-    """
-
-    # Use 'year' component of ds's time if not provided
     time = ds.time.dt.year.values if time is None else time
 
-    # Apply exceedance function with xr.apply_ufunc
+    if greater is None and comparison_func is not None:
+        greater = _COMPARISON_MAP.get(comparison_func)
+
+    if greater is None:
+        raise ValueError("Must provide either `greater` or a recognised `comparison_func`.")
+
     to_return = xr.apply_ufunc(
-        get_exceedance_arg, 
-        ds, 
-        kwargs=dict(time=time, threshold=threshold, comparison_func=comparison_func, trim_nan=trim_nan),
+        get_exceedance_arg,
+        ds,
+        kwargs=dict(
+            time=time, threshold=threshold, greater=greater, trim_nan=trim_nan),
         input_core_dims=[['time']],
         output_core_dims=[[]],
-        vectorize=True, 
+        vectorize=True,
         dask='parallelized',
         output_dtypes=[float],
         keep_attrs='identical'
     )
 
     return to_return
+
+
+@njit
+def _get_first_exceedance_of_duration(arr, time, threshold, min_years, greater=True, trim_nan=True):
+    """Find the start time of the first contiguous exceedance lasting >= min_years."""
+    n = arr.shape[0]
+    if n == 0:
+        return np.nan
+
+    # --- resolve valid range (same trim_nan logic as your permanent version) ---
+    if trim_nan:
+        first = -1
+        last = -1
+        for i in range(n):
+            if np.isfinite(arr[i]):
+                if first == -1:
+                    first = i
+                last = i
+        if first == -1:
+            return np.nan
+    else:
+        first = 0
+        last = n - 1
+        has_finite = False
+        for i in range(n):
+            if np.isfinite(arr[i]):
+                has_finite = True
+                break
+        if not has_finite:
+            return np.nan
+
+    # --- scan forward for first block of sufficient duration ---
+    run_start = -1
+    for i in range(first, last + 1):
+        if greater:
+            exceeds = arr[i] > threshold
+        else:
+            exceeds = arr[i] < threshold
+
+        if exceeds:
+            if run_start == -1:
+                run_start = i
+            duration = time[i] - time[run_start] + 1  # inclusive year count
+            if duration >= min_years:
+                return time[run_start]
+        else:
+            run_start = -1
+
+    return np.nan
+
+
+
+
+def get_first_exceedance_of_duration(
+    ds: xr.DataArray,
+    threshold: Union[int, float],
+    min_years: Union[int, float],
+    greater: bool = None,
+    comparison_func: Callable = None,
+    time: Optional[np.ndarray] = None,
+    trim_nan: bool = False,
+) -> xr.DataArray:
+    """
+    First year where exceedance persists for at least `min_years` consecutive years.
+
+    Parameters
+    ----------
+    min_years : int or float
+        Minimum contiguous duration. Use 1 for first exceedance,
+        10/20/etc for durability thresholds, np.inf for permanent.
+    """
+    time = ds.time.dt.year.values if time is None else time
+
+    if greater is None and comparison_func is not None:
+        greater = _COMPARISON_MAP.get(comparison_func)
+    if greater is None:
+        raise ValueError("Must provide either `greater` or a recognised `comparison_func`.")
+
+    if np.isinf(min_years):
+        # permanent = must persist to end of series, reuse your existing kernel
+        return xr.apply_ufunc(
+            get_exceedance_arg,
+            ds,
+            kwargs=dict(time=time, threshold=threshold, greater=greater, trim_nan=trim_nan),
+            input_core_dims=[['time']],
+            output_core_dims=[[]],
+            vectorize=True,
+            dask='parallelized',
+            output_dtypes=[float],
+            keep_attrs='identical',
+        )
+
+    return xr.apply_ufunc(
+        _get_first_exceedance_of_duration_wrapper,
+        ds,
+        kwargs=dict(time=time, threshold=threshold, min_years=min_years,
+                     greater=greater, trim_nan=trim_nan),
+        input_core_dims=[['time']],
+        output_core_dims=[[]],
+        vectorize=True,
+        dask='parallelized',
+        output_dtypes=[float],
+        keep_attrs='identical',
+    )
+
+
+def _get_first_exceedance_of_duration_wrapper(arr, time, threshold, min_years, greater=True, trim_nan=False):
+    """Non-njit wrapper for apply_ufunc vectorize compatibility."""
+    return _get_first_exceedance_of_duration(arr, time, threshold, min_years, greater=greater, trim_nan=trim_nan)
+
+
+# def get_exceedance_arg(arr, time, threshold, comparison_func, trim_nan=True):
+#     """
+#     Get the index of the first occurrence where arr exceeds a threshold.
+
+#     Parameters:
+#         arr (array-like): 1D array of values.
+#         time (array-like): Corresponding 1D array of time values.
+#         threshold (float): Threshold value for comparison.
+#         comparison_func (function): Function to compare arr with the threshold.
+#         time_nan (Bool) = False: Remove nans at end of series. Currently set to False
+#         as default, but might change to True in future (just need to check no interference)
+
+#     Returns:
+#         float: The time corresponding to the first exceedance of the threshold.
+#                If there is no exceedance, returns np.nan.
+
+#     Example:
+#         data = [False, False, False, False, False, False,
+#                 False, False, False, False, True, False, True, 
+#                 True, True]
+
+#         # Group consecutive True and False values
+#         groups = [(key, len(list(group))) for key, group in groupby(data)]
+#         print(groups)
+#         >>> [(False, 10), (True, 1), (False, 1), (True, 3)]
+#         # Check if the last group is True
+#         groups[-1][0] == True
+#         # Compute the index of the first exceedance
+#         first_exceedance_arg = int(np.sum(list(map(lambda x: x[1], groups))[:-1]))
+#         print(first_exceedance_arg)
+#         >>> 12
+#     """
+
+#     if arr.size == 0 or not np.isfinite(arr).any():
+#         return np.nan
+    
+#     if trim_nan:
+#         # Trim trailing *non-finite* (NaN/±inf)
+#         last_valid_idx = np.where(np.isfinite(arr))[0][-1]
+#         arr  = arr[:last_valid_idx + 1]
+#         time = time[:last_valid_idx + 1]
+    
+#         # Trim leading non-finite
+#         finite_idx = np.flatnonzero(np.isfinite(arr))
+#         if finite_idx.size == 0: return np.nan
+            
+#         first = finite_idx[0]
+#         arr  = arr[first:]
+#         time = time[first:]
+
+#     # Find indices where values exceed threshold
+#     if comparison_func is not None: # Can be none if values are already bool
+#         greater_than_arg_list = comparison_func(arr, threshold)
+#     else: greater_than_arg_list = arr
+
+#     # If no value exceeds threshold, return nan
+#     if np.all(greater_than_arg_list == False): return np.nan
+
+#     # Group consecutive True and False values
+#     groups = [(key, len(list(group))) for key, group in groupby(greater_than_arg_list)]
+
+#     # If the last group is False, there is no exceedance, return nan
+#     if groups[-1][0] == False: return np.nan
+
+#     # The argument will be the sum of all the other group lengths up to the last group
+#     # As the -1 group is being used, this will be when permanent emergence occurs
+#     first_exceedance_arg = int(np.sum(list(map(lambda x: x[1], groups))[:-1]))
+
+#     # Get the time corresponding to the first exceedance
+#     first_exceedance = time[first_exceedance_arg]
+
+#     return first_exceedance
+
+
+# def get_permanent_exceedance(
+#     ds: xr.DataArray, threshold: Union[int, float], comparison_func: Callable,
+#     time: Optional[xr.DataArray] = None, trim_nan=False)-> xr.DataArray:
+#     """
+#     Calculate the time of the first permanent exceedance for each point in a DataArray.
+
+#     This function calculates the time of the first permanent exceedance (defined as when a value exceeds a threshold
+#     and never goes below it again) for each point in a DataArray.
+
+#     Parameters:
+#         ds (xr.DataArray): Input data.
+#         threshold (Union[int, float]): Threshold value for exceedance.
+#         comparison_func (Callable): Function to compare values with the threshold.
+#         time (Optional[xr.DataArray]): Optional array of time values corresponding to the data. 
+#                                         If not provided, it will default to the 'year' component of ds's time.
+
+#     Returns:
+#         xr.DataArray: DataArray containing the time of the first permanent exceedance for each point.
+#     """
+
+#     # Use 'year' component of ds's time if not provided
+#     time = ds.time.dt.year.values if time is None else time
+
+#     # Apply exceedance function with xr.apply_ufunc
+#     to_return = xr.apply_ufunc(
+#         get_exceedance_arg, 
+#         ds, 
+#         kwargs=dict(
+#             time=time, threshold=threshold, comparison_func=comparison_func, trim_nan=trim_nan),
+#         input_core_dims=[['time']],
+#         output_core_dims=[[]],
+#         vectorize=True, 
+#         dask='parallelized',
+#         output_dtypes=[float],
+#         keep_attrs='identical'
+#     )
+
+#     return to_return
 
 
 def get_permanent_exceedance_multi_metrics(

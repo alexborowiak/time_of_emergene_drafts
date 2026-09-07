@@ -95,7 +95,7 @@ def open_gpcc(resample=False):
     return gcpp_ds
 
 
-def open_best(chunks=None):
+def open_best(chunks=None, resample=True):
     """
     Open and process BEST temperature dataset.
 
@@ -119,8 +119,9 @@ def open_best(chunks=None):
     # Select temperature variable
     best_ds = best_ds_raw['temperature']
     # Resample to yearly mean
-    print('  -- resampling to yearly mean')
-    best_ds = best_ds.resample(time='YE').mean()
+    if resample:
+        print('  -- resampling to yearly mean')
+        best_ds = best_ds.resample(time='YE').mean()
     # Compute and return the processed dataset
     best_ds = best_ds.compute().chunk(best_chunks if chunks is None else chunks)
     best_ds.attrs['dataset_name'] = 'best'

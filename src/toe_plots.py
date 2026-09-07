@@ -8,6 +8,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as mcolors
+import matplotlib.ticker as mticker
+
 
 import utils
 from utils import logger
@@ -16,7 +18,6 @@ sys.path.append(os.path.join(os.getcwd(), 'Documents', 'time_of_emergene_drafts'
 import plotting_utils
 import toe_constants as toe_const
 
-color_list = ['#1f77b4', '#ff7f0e', '#8bc34a']
 
 main_toe_metrics = ('sn_lowess_base', 'ks', 'ttest', 'frac', 'hd') #, 'perkins'
 main_toe_metrics_no_hype = ('sn_lowess_base', 'frac', 'hd')
@@ -68,34 +69,37 @@ NAME_MAPPING = {
     'access_ssp585_pr': 'Annual Precipitation\n(ACCESS-ESM1-5)'
 }
 
+# ── Core label atoms ─────────────────────────────────────────────────────
+SIG_LABEL_MAP   = {'lowess': 'LOWESS', 'mean': 'Mean', 'poly4': 'Poly.', 'ens_med': 'Ens. Mean'}
+NOISE_LABEL_MAP = {'base': 'Base', 'full': 'Full', 'pi': 'piC.', 'roll': 'Roll.'}
+LABEL_MAP       = {**SIG_LABEL_MAP, **NOISE_LABEL_MAP}
+
+# ── Build S/N names from the atoms ──────────────────────────────────────
+def _sn_name(signal, noise=None):
+    s = SIG_LABEL_MAP.get(signal, signal)
+    if noise is None:
+        return f'S/N ({s})'
+    n = NOISE_LABEL_MAP.get(noise, noise)
+    return f'S/N ({s}, {n})'
+
 METRIC_NAME_MAP = {
-    # --- S/N ---
-    'sn': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
-    'sn_lowess_base': r'S/N$_{\mathrm{LOWESS,\ base}}$ Ratio',
-    'sn_lowess_full': r'S/N$_{\mathrm{LOWESS,\ full}}$ Ratio',
-    'sn_lowess_pi': r'S/N$_{\mathrm{LOWESS,\ piC.}}$ Ratio',
-    'sn_lowess_roll': r'S/N$_{\mathrm{LOWESS,\ roll}}$ Ratio',
-    'sn_mean': r'S/N$_{\mathrm{mean,\ base}}$ Ratio',
-    'sn_mean_base': r'S/N$_{\mathrm{mean,\ base}}$ Ratio',
-    'sn_mean_pi': r'S/N$_{\mathrm{mean,\ piC.}}$ Ratio',
-    'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$ Ratio',
-    'sn_poly4_base': r'S/N$_{\mathrm{poly4,\ base}}$ Ratio',
-    'sn_poly_pi': r'S/N$_{\mathrm{poly4,\ piC.}}$ Ratio',
-    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean}}$ Ratio',
-    'sn_ens_med_base': r'S/N$_{\mathrm{Ens.\ mean,\ base}}$ Ratio',
-    'sn_ens_med_pi': r'S/N$_{\mathrm{Ens.\ mean,\ piC.}}$ Ratio',
-
+    # S/N — auto-generated from atoms
+    **{f'sn_{sig}_{noise}': _sn_name(sig, noise)
+       for sig in SIG_LABEL_MAP for noise in NOISE_LABEL_MAP},
+    # S/N — shorthand aliases
+    'sn':     _sn_name('lowess', 'base'),
+    'sn_mean': _sn_name('mean', 'base'),
+    'sn_ens_med': _sn_name('ens_med'),
     # --- Statistical tests ---
-    'ks': 'Kolmogorov-\nSmirnov Test',
-    'ks_bbs': 'Kolmogorov-\nSmirnov Test \n(Block Bootstrap)',
-    'ttest': 'T-Test',
+    'ks':        'Kolmogorov-\nSmirnov (KS) Test',
+    'ks_bbs':    'Kolmogorov-\nSmirnov (KS) Test\n(Block Bootstrap)',
+    'ttest':     'T-Test',
     'ttest_bbs': 'T-Test\n(Block Bootstrap)',
-    'mwu': 'Mann–Whitney\nU Test',
-
+    'mwu':       'Mann–Whitney\nU Test',
     # --- Distances / overlap ---
     'perkins': 'Perkins\nSkill Score',
-    'frac': 'Area of\nOverlap',
-    'hd': 'Hellinger\nDistance'
+    'frac':    'Area of\nOverlap (AO)',
+    'hd':      'Hellinger\nDistance (HD)',
 }
 
 METRIC_NAME_MAP['ks_bbs_window'] = METRIC_NAME_MAP['ks_bbs']
@@ -119,13 +123,16 @@ METRIC_NAME_MAP_SHORT = {
     'sn_mean_roll': r'S/N$_{\mathrm{mean,\ roll}}$',
 
     # --- S/N poly4 ---
-    'sn_poly4_base': r'S/N$_{\mathrm{poly4,\ base}}$',
-    'sn_poly_pi': r'S/N$_{\mathrm{poly4,\ piC}}$',
+    'sn_poly4_base': r'S/N$_{\mathrm{polynomial,\ base}}$',
+    'sn_poly_base': r'S/N$_{\mathrm{polynomial,\ base}}$',
+    'sn_poly_pi': r'S/N$_{\mathrm{4th order polynomial,\ piC}}$',
 
     # --- S/N ensemble median ---
-    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ mean}}$',
-    'sn_ens_med_base': r'S/N$_{\mathrm{Ens.\ mean,\ base}}$',
-    'sn_ens_med_pi': r'S/N$_{\mathrm{Ens.\ mean,\ piC}}$',
+    'sn_ens_med': r'S/N$_{\mathrm{Ens.\ Med.}}$',
+    'sn_ens_med_base': r'S/N$_{\mathrm{Ens.\ Med.,\ base}}$',
+    'sn_ens_med_pi': r'S/N$_{\mathrm{Ens.\ Med.,\ piC}}$',
+
+    'sn_anom_base': r'S/N$_{\mathrm{anomalies,\ base}}$',
 
     # --- Stats tests ---
     'ks': 'KS test',
@@ -136,8 +143,10 @@ METRIC_NAME_MAP_SHORT = {
 
     # --- Distances / overlap ---
     'perkins': 'PSS',
-    'frac': 'AO',
-    'hd': 'HD'
+    'frac': 'Area of Overlap',
+    'hd': 'Hellinger Distance',
+    'nn': 'New Normal',
+    'pr': 'PR',
 }
 
 METRIC_NAME_MAP_SHORT['ks_bbs_window'] = METRIC_NAME_MAP_SHORT['ks_bbs']
@@ -169,87 +178,185 @@ class StyleDict(dict):
             return {k: v for k, v in d.items() if k not in drop_keys}
         return d
 
+# ══════════════════════════════════════════════════════════════════════════
+# Signal × Noise style system
+# ══════════════════════════════════════════════════════════════════════════
 
-TEST_STYLES = StyleDict({
-    # --- S/N LOWESS (anchored to color_list[0]) ---
-    'sn_lowess_base': {'color': color_list[0], 'linestyle': 'solid',  'marker': 'o'},
-    'sn_lowess_full': {'color': color_list[0], 'linestyle': 'dashed', 'marker': 's'},
-    'sn_lowess_pi':   {'color': color_list[0], 'linestyle': 'dotted', 'marker': 'D'},
-    'sn_lowess_roll': {'color': color_list[0], 'linestyle': 'dashdot','marker': '^'},
+# ── Signal × Noise style system ──────────────────────────────────────────
+# Colour = noise estimator (what's the denominator?)
+# Linestyle = signal method (what's the numerator?) — lives in SIGNAL_STYLES
+# Per-signal shades within each noise family for distinguishability
+# ══════════════════════════════════════════════════════════════════════════
+# toe_plots style system — complete
+# ══════════════════════════════════════════════════════════════════════════
 
-    # --- S/N MEAN (greys) ---
-    'sn_mean_base': {'color': '#4D4D4D', 'linestyle': 'solid',  'marker': 'v'},
-    'sn_mean_pi':   {'color': '#4D4D4D', 'linestyle': 'dashed', 'marker': 'P'},
-    'sn_mean_roll': {'color': '#4D4D4D', 'linestyle': 'dotted', 'marker': 'X'},
+color_list = ['#1f77b4', '#ff7f0e', '#8bc34a']
 
-    # --- S/N POLY4 (browns) ---
-    'sn_poly4_base': {'color': '#8C510A', 'linestyle': 'solid',  'marker': '*'},
-    'sn_poly_pi':    {'color': '#8C510A', 'linestyle': 'dashed', 'marker': 'h'},
-
-    # --- S/N ENS_MED (purples) ---
-    'sn_ens_med_base': {'color': '#762A83', 'linestyle': 'solid',  'marker': 'p'},
-    'sn_ens_med_pi':   {'color': '#762A83', 'linestyle': 'dashed', 'marker': '<'},
-
-    # --- Statistical tests ---
-    'ks':        {'color': color_list[1], 'linestyle': 'solid',   'marker': 'o'},  # orange base
-    'ks_bbs':    {'color': color_list[1], 'linestyle': 'dotted',  'marker': 's'},  # orange bootstrap
-    
-    'ttest':     {'color': '#d73027',     'linestyle': 'solid',   'marker': 'v'},  # red base
-    'ttest_bbs': {'color': '#d73027',     'linestyle': 'dashed',  'marker': 'P'},  # red bootstrap
-    
-    'mwu':       {'color': '#542788',     'linestyle': 'solid',   'marker': 'D'},  # violet
-
-
-
-    # --- Distances / overlap (greens, varied shades) ---
-    'frac':    {'color': '#8bc34a', 'linestyle': 'solid',  'marker': 'o'},  # bright green
-    'perkins': {'color': '#4caf50', 'linestyle': 'dashed', 'marker': 's'},  # darker green
-    'hd':      {'color': '#c7e9c0', 'linestyle': 'dotted', 'marker': 'D'}   # pale mint green
+# ── Signal method: linestyle + linewidth ─────────────────────────────────
+SIGNAL_STYLES = {
+    'lowess':  {'linestyle': 'solid',   'label': 'LOWESS',          'lw': 1.8},
+    'mean':    {'linestyle': 'dashed',  'label': 'Moving Avg.',     'lw': 1.3},
+    'poly4':   {'linestyle': 'dotted',  'label': '4th-order Poly.', 'lw': 1.3},
+    'ens_med': {'linestyle': 'dashdot', 'label': 'Ensemble Median', 'lw': 1.3},
+    'anom':    {'linestyle': (0, (3, 1, 1, 1, 1, 1)), 'label': 'Anomalies', 'lw': 1.0},
 }
-                       )
 
+# ── Noise estimator: colour families ─────────────────────────────────────
+NOISE_COLORS = {
+    'base': {
+        'lowess': '#1f77b4',
+        'mean':   '#2d4a6f',
+        'poly4':  '#62b8e8',
+        'ens_med':'#0d3b66',
+    },
+    'full': {
+        'lowess': '#6a5acd',
+        'mean':   '#9370db',
+        'poly4':  '#3d2b7a',
+    },
+    'pi': {
+        'lowess': '#708090',
+        'mean':   '#a0adb8',
+        'poly4':  '#4a5568',
+    },
+    'roll': {
+        'lowess': '#b07050',
+        'mean':   '#c49070',
+    },
+}
+
+NOISE_HIERARCHY = {
+    'base': {'alpha': 0.95, 'lw_scale': 1.0},
+    'full': {'alpha': 0.75, 'lw_scale': 0.85},
+    'pi':   {'alpha': 0.75, 'lw_scale': 0.9},
+    'roll': {'alpha': 0.75, 'lw_scale': 0.9},
+}
+
+def _build_sn_styles():
+    """Compose S/N TEST_STYLES from noise colours × signal linestyles."""
+    styles = {}
+    for noise, colors in NOISE_COLORS.items():
+        h = NOISE_HIERARCHY[noise]
+        for signal, color in colors.items():
+            sig = SIGNAL_STYLES[signal]
+            key = f'sn_{signal}_{noise}'
+            styles[key] = {
+                'color':     color,
+                'linestyle': sig['linestyle'],
+                'lw':        sig['lw'] * h['lw_scale'],
+                'alpha':     h['alpha'],
+                'marker':    'o',
+            }
+    return styles
+
+# ── Full TEST_STYLES: S/N grid + everything else ─────────────────────────
+TEST_STYLES = StyleDict({
+    # S/N signal × noise grid
+    **_build_sn_styles(),
+
+    # ── S/N anomalies (standalone, not in the grid) ──────────────────
+    'sn_anom': {'color': '#7ab8e8', 'linestyle': (0, (3, 1, 1, 1, 1, 1)), 'marker': '<'},
+
+    # ── New Normal ────────────────────────────────────────────────────
+    'nn': {'color': '#762A83', 'linestyle': 'solid', 'marker': 'p'},
+
+    # ── Statistical tests (orange/red) ───────────────────────────────
+    'ks':        {'color': color_list[1], 'linestyle': 'solid',  'marker': 'o'},
+    'ks_bbs':    {'color': color_list[1], 'linestyle': 'dotted', 'marker': 's'},
+    'ttest':     {'color': '#d73027',     'linestyle': 'solid',  'marker': 'v'},
+    'ttest_bbs': {'color': '#d73027',     'linestyle': 'dashed', 'marker': 'P'},
+    'mwu':       {'color': 'forestgreen', 'linestyle': 'solid',  'marker': 'D'},
+
+    # ── Distances / overlap (greens) ─────────────────────────────────
+    'frac':    {'color': 'yellowgreen', 'linestyle': 'solid',  'marker': 'o'},
+    'perkins': {'color': '#4caf50',     'linestyle': 'dashed', 'marker': 's'},
+    'hd':      {'color': 'seagreen',    'linestyle': 'dotted', 'marker': 'D'},
+    'pr':      {'color': 'orchid',      'linestyle': 'dotted', 'marker': 'D'},
+})
+
+# ── Aliases ──────────────────────────────────────────────────────────────
+TEST_STYLES['sn'] = TEST_STYLES['sn_lowess_base']
+TEST_STYLES['sn_anom_base'] = TEST_STYLES['sn_anom']
+TEST_STYLES['sn_poly_base'] = TEST_STYLES['sn_poly4_base']
+TEST_STYLES['sn_poly_pi'] = TEST_STYLES.get('sn_poly4_pi', TEST_STYLES['sn_poly4_base'])
+TEST_STYLES['sn_poly_full'] = TEST_STYLES.get('sn_poly4_full', TEST_STYLES['sn_poly4_base'])
 TEST_STYLES['ks_bbs_window'] = TEST_STYLES['ks_bbs']
 TEST_STYLES['ks_window'] = TEST_STYLES['ks']
-
 TEST_STYLES['ttest_bbs_window'] = TEST_STYLES['ttest_bbs']
 TEST_STYLES['ttest_window'] = TEST_STYLES['ttest']
 
-# Alias so you can use either name
-TEST_PLOT_DICT = TEST_STYLES
-test_styles = TEST_STYLES
 
 
-# TEST_PLOT_DICT = {
-#     # --- S/N family (base = blue #1f77b4) ---
-#     'sn_lowess_base':   {'color': '#1f77b4', 'marker': 'o', 'linestyle': 'solid'},
-#     'sn_lowess_full':   {'color': '#2a82c8', 'marker': 's', 'linestyle': 'dashed'},
-#     'sn_lowess_pi':     {'color': '#3390dc', 'marker': 'D', 'linestyle': 'dotted'},
-#     'sn_lowess_roll':   {'color': '#4da3e7', 'marker': '^', 'linestyle': 'dashdot'},
-#     'sn_mean_base':     {'color': '#66b2ff', 'marker': 'v', 'linestyle': 'solid'},
-#     'sn_mean_pi':       {'color': '#80c1ff', 'marker': 'P', 'linestyle': 'dashed'},
-#     'sn_mean_roll':     {'color': '#99cfff', 'marker': 'X', 'linestyle': 'dotted'},
-#     'sn_poly4_base':    {'color': '#b3ddff', 'marker': '*', 'linestyle': 'solid'},
-#     'sn_poly_pi':       {'color': '#cceaff', 'marker': 'h', 'linestyle': 'dashed'},
-#     'sn_ens_med_base':  {'color': '#e6f5ff', 'marker': 'p', 'linestyle': 'solid'},
-#     'sn_ens_med_pi':    {'color': '#f2faff', 'marker': '<', 'linestyle': 'dashed'},
-
-#     # --- Statistical tests family (base = orange #ff7f0e) ---
-#     'ks':        {'color': '#ff7f0e', 'marker': 'o', 'linestyle': 'solid'},   # base
-#     'ks_bbs':    {'color': '#ff9933', 'marker': 's', 'linestyle': 'dotted'},  # bootstrap
-#     'ttest':     {'color': '#ff7f0e', 'marker': 'v', 'linestyle': 'dashed'},  # base
-#     'ttest_bbs': {'color': '#ff9933', 'marker': 'P', 'linestyle': 'dashdot'}, # bootstrap
-#     'mwu':       {'color': '#ffd9b3', 'marker': 'h', 'linestyle': (0, (3, 5, 1, 5))},  # MWU custom
-
-#     # --- Distances / overlap family (base = green #8bc34a) ---
-#     'frac':    {'color': '#8bc34a', 'marker': 'o', 'linestyle': 'solid'},
-#     'perkins': {'color': '#a6d96a', 'marker': 's', 'linestyle': 'dashed'},
-#     'hd':      {'color': '#c7e9b4', 'marker': 'D', 'linestyle': 'dotted'}
-# }
 
 
 test_styles = TEST_STYLES
 
+# ══════════════════════════════════════════════════════════════════════════
+# CELL A — Shared formatting infrastructure (add to toe_plots.py)
+#
+# Used by both the schematic figure (fig_02) and the framing figure.
+# In toe_plots.py these would replace the current S dict / helpers.
+# ══════════════════════════════════════════════════════════════════════════
 
+STYLE_FRAMING = {
+    # Figure dimensions
+    "figw":            7.2,
+    "figh":            8.0,
+    # Named colours
+    "base_color":      "steelblue",
+    "future_color":    "firebrick",
+    "median_color":    "#1a1a1a",
+    "comp_color":      "firebrick",
+    # Font sizes
+    "title":           9,
+    "label":           8,
+    "text":            7,
+    "tick":            7,
+    "legend":          7,
+    "panel":           10,
+    # Line widths
+    "lw":              1.6,
+    "lw_signal":       1.5,
+    "lw_sn":           1.2,
+    "member_lw":       0.5,
+    # Markers
+    "marker_s":        18,
+    # Alphas
+    "alpha_series":    0.4,
+    "alpha_kde":       0.3,
+    # Threshold lines
+    "threshold_ls":    "--",
+    "threshold_color": "0.4",
+}
+
+LEGEND_FRAMING = dict(
+    fontsize=STYLE_FRAMING["legend"] * 1.1,
+    labelspacing=0.25,
+    handletextpad=0.4,
+    framealpha=0.8,
+)
+
+
+
+THESHOLD_STYLE= dict(ls="--", color=STYLE_FRAMING["future_color"], lw=STYLE_FRAMING["lw"] * 0.55, alpha=0.65, zorder=0)
+
+
+def _grid(ax):
+    ax.grid(True, ls="--", alpha=0.5)
+
+
+def _ticks(ax):
+    ax.tick_params(axis="both", labelsize=STYLE_FRAMING["tick"], direction="out")
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(20))
+    ax.xaxis.set_minor_locator(mticker.MultipleLocator(5))
+
+
+def annotate_panels(axes, *, xy=(0.01, 1.03), xy_overrides=None):
+    xy_overrides = xy_overrides or {}
+    for i, ax in enumerate(axes):
+        pos = xy_overrides.get(i, xy)
+        ax.annotate(f"{chr(97 + i)})", xy=pos, xycoords="axes fraction",
+                    fontsize=STYLE_FRAMING["panel"], fontweight="bold")
 
 
 def format_lat_lon_title(location):
@@ -326,7 +433,7 @@ def plot_multiseries_with_pvalues(
             ax = ax4
             # series_vals = threshold = flip_value(series_data, 100)
         series_vals = series_data
-        color = TEST_PLOT_DICT[series_name]['color']
+        color = TEST_PLOT_DICT.get(series_name, {'color':'black'})['color']
         label = toe_const.NAME_CONVERSION_DICT.get(series_name, series_name)
         
         ax.plot(time, series_vals, c=color, label=label)
@@ -342,12 +449,12 @@ def plot_multiseries_with_pvalues(
             # elif series_name in toe_const.OVERLAP_TESTS: threshold = flip_value(threshold, 100)
             ax.axhline(threshold, color=color, linestyle='--', alpha=0.7)
 
-    ax2.spines['left'].set_color(TEST_PLOT_DICT['sn']['color'])
+    ax2.spines['left'].set_color(TEST_PLOT_DICT['sn_lowess_full']['color'])
     ax3.spines['left'].set_color(TEST_PLOT_DICT['ks']['color'])
     ax4.spines['left'].set_color(TEST_PLOT_DICT['frac']['color'])
 
     
-    ax2.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['sn']['color'])
+    ax2.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['sn_lowess_full']['color'])
     ax3.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['ks']['color'])
     ax4.tick_params(axis='y', which='both', labelcolor=TEST_PLOT_DICT['frac']['color'])
 
@@ -365,7 +472,7 @@ def plot_multiseries_with_pvalues(
         
 
         
-        color = TEST_PLOT_DICT[test_name].get('color', 'k')  # Get color from dict or default to black
+        color = TEST_PLOT_DICT.get(test_name, {'color': 'black'}).get('color', 'k')  # Get color from dict or default to black
         if 'sn' in test_name:ax = ax2
         elif test_name in toe_const.PVALUE_TESTS: ax = ax3
         elif test_name in toe_const.OVERLAP_TESTS: ax = ax4
